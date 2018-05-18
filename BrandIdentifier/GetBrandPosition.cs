@@ -171,17 +171,22 @@ namespace BrandIdentifier2
                         foreach (var item in customVisionResults.predictions)
                         {
                             decimal probability = (decimal)item.probability;
-                            if (probability >= .02m)
-                            {
-                                results.Add(new thumb
+                                if (probability >= .02m)
                                 {
-                                    thumbId = thumb.thumbId,
-                                    probability = probability,
-                                    match = item.tagName,
-                                    start = DateTime.Parse(thumb.start.ToString()),
-                                    end = DateTime.Parse(thumb.end.ToString())
-                                });
-                            }
+                                    if (item.tagName !="blankscreen")
+                                    {
+                                        results.Add(new thumb
+                                        {
+                                            thumbId = thumb.thumbId,
+                                            probability = probability,
+                                            match = item.tagName,
+                                            start = DateTime.Parse(thumb.start.ToString()),
+                                            end = DateTime.Parse(thumb.end.ToString())
+                                        });
+                                    }
+                                    
+                                }
+
                         }
                     }
                 }
