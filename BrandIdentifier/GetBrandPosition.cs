@@ -7,6 +7,7 @@ using Microsoft.Azure.WebJobs.Host;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -28,7 +29,10 @@ namespace BrandIdentifier2
         [FunctionName("GetBrandPosition")]
         public static IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequest req, TraceWriter log)
         {
-            log.Info("C# HTTP trigger function processed a request.");
+            try
+            {
+
+           log.Info("C# HTTP trigger function processed a request.");
 
             string videoId = req.Query["videoID"];
 
@@ -77,13 +81,13 @@ namespace BrandIdentifier2
                     {
                         foreach (var instance in keyFrame.instances)
                         {
-                            //Console.WriteLine(string.Format("{0} : {1} : {2} : {3} : {4}", shot.id, keyFrame.id, instance.thumbnailId, instance.start, instance.end));
-                            thumbs.Add(new thumb
-                            {
-                                thumbId = instance.thumbnailId,
-                                image = GetThumb(instance.thumbnailId.ToString(), videoId, videoAccessToken),
-                                start = instance.start,
-                                end = instance.end
+                                //Console.WriteLine(string.Format("{0} : {1} : {2} : {3} : {4}", shot.id, keyFrame.id, instance.thumbnailId, instance.start, instance.end));
+                                thumbs.Add(new thumb
+                                {
+                                    thumbId = instance.thumbnailId,
+                                    image = GetThumb(instance.thumbnailId.ToString(), videoId, videoAccessToken),
+                                    start = (DateTime)instance.start,
+                                end = (DateTime)instance.end
                             });
                         }
 
@@ -98,7 +102,7 @@ namespace BrandIdentifier2
             foreach (var prediction in predictions)
             {
                 log.Info(string.Format("Thumb: {0} - {1} - {2} Start: {3}  End: {4}", prediction.thumbId, prediction.match, prediction.probability,
-                     prediction.start, prediction.end));
+                     prediction.start.ToString("HH:mm:ss.ffff"), prediction.end.ToString("HH:mm:ss.ffff")));
             }
 
             startAndEnd startAndEndFrames = GetStartAndEndFrames(predictions);
@@ -111,6 +115,12 @@ namespace BrandIdentifier2
                 ? (ActionResult)new OkObjectResult(responseMsg)
                 : new BadRequestObjectResult("Please pass a video Id on the query string");
 
+            }
+            catch (Exception ex)
+            {
+                log.Info(ex.InnerException.Message);
+                return new BadRequestObjectResult(ex.InnerException.Message);
+            }
 
         }
 
@@ -164,6 +174,8 @@ namespace BrandIdentifier2
                     content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
                     response = client.PostAsync(customVizURL, content).Result;
                     var thumbResult = response.Content.ReadAsStringAsync().Result;
+                    CultureInfo provider = CultureInfo.InstalledUICulture;
+                    string timeFormat = "HH:mm:ss.ffffff";
 
                     dynamic customVisionResults = JsonConvert.DeserializeObject(thumbResult);
                     if (customVisionResults.predictions != null)
@@ -180,8 +192,8 @@ namespace BrandIdentifier2
                                             thumbId = thumb.thumbId,
                                             probability = probability,
                                             match = item.tagName,
-                                            start = DateTime.Parse(thumb.start.ToString()),
-                                            end = DateTime.Parse(thumb.end.ToString())
+                                            start = thumb.start,
+                                            end = thumb.end
                                         });
                                     }
                                     
