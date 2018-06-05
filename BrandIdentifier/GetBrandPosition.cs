@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Host;
+using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -12,6 +13,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+
 
 namespace BrandIdentifier2
 {
@@ -27,92 +29,94 @@ namespace BrandIdentifier2
         static string customVizURL;
 
         [FunctionName("GetBrandPosition")]
-        public static IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequest req, TraceWriter log)
+        public static IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "GetBrandPosition/{videoID}")]HttpRequest req,
+            [Blob("results/{videoId}.json", FileAccess.Write, Connection = "storageConnectionString")] Stream writer,
+            string videoId,
+            TraceWriter log, ExecutionContext context)
         {
             try
             {
+                log.Info("C# HTTP trigger function processed a request.");
+                log.Info(string.Format("videoID: {0}", videoId));
 
-           log.Info("C# HTTP trigger function processed a request.");
+                GetSettings(context);
+                log.Info("Retrieved Settings");
 
-            string videoId = req.Query["videoID"];
+                //set the TLS level used
+                System.Net.ServicePointManager.SecurityProtocol = System.Net.ServicePointManager.SecurityProtocol | System.Net.SecurityProtocolType.Tls12;
 
-            //string requestBody = new StreamReader(req.Body).ReadToEnd();
-            //dynamic data = JsonConvert.DeserializeObject(requestBody);
-            //name = name ?? data?.name;
+                // create the http client
+                var handler = new HttpClientHandler();
+                handler.AllowAutoRedirect = false;
+                var client = new HttpClient(handler);
+                client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", apiKey);
 
-            //return name != null
-            //    ? (ActionResult)new OkObjectResult($"Hello, {name}")
-            //    : new BadRequestObjectResult("Please pass a name on the query string or in the request body");
+                // obtain video access token used in subsequent calls
+                log.Info($"{apiUrl}/auth/{location}/Accounts/{accountId}/Videos/{videoId}/AccessToken");
+                var videoAccessTokenRequestResult = client.GetAsync($"{apiUrl}/auth/{location}/Accounts/{accountId}/Videos/{videoId}/AccessToken").Result;
+                var videoAccessToken = videoAccessTokenRequestResult.Content.ReadAsStringAsync().Result.Replace("\"", "");
 
-            //Load settings
-            GetSettings();
+               client.DefaultRequestHeaders.Remove("Ocp-Apim-Subscription-Key");
 
-            //TODO: MOve to an input param
-            //var videoId = "0267c3c749";
+                // Get video details
+                var videoRequestResult = client.GetAsync($"{apiUrl}/{location}/Accounts/{accountId}/Videos/{videoId}/Index?accessToken={videoAccessToken}").Result;
+                var videoResult = videoRequestResult.Content.ReadAsStringAsync().Result;
 
-            //set the TLS level used
-            System.Net.ServicePointManager.SecurityProtocol = System.Net.ServicePointManager.SecurityProtocol | System.Net.SecurityProtocolType.Tls12;
+               dynamic videoDetails = JsonConvert.DeserializeObject(videoResult);
 
-            // create the http client
-            var handler = new HttpClientHandler();
-            handler.AllowAutoRedirect = false;
-            var client = new HttpClient(handler);
-            client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", apiKey);
-
-            // obtain video access token used in subsequent calls
-            var videoAccessTokenRequestResult = client.GetAsync($"{apiUrl}/auth/{location}/Accounts/{accountId}/Videos/{videoId}/AccessToken").Result;
-            var videoAccessToken = videoAccessTokenRequestResult.Content.ReadAsStringAsync().Result.Replace("\"", "");
-
-            client.DefaultRequestHeaders.Remove("Ocp-Apim-Subscription-Key");
-
-            // Get video details
-            var videoRequestResult = client.GetAsync($"{apiUrl}/{location}/Accounts/{accountId}/Videos/{videoId}/Index?accessToken={videoAccessToken}").Result;
-            var videoResult = videoRequestResult.Content.ReadAsStringAsync().Result;
-
-            dynamic videoDetails = JsonConvert.DeserializeObject(videoResult);
-
-            //Iterate through the results to extract the key frames and thumbnail images to build a list of the thumbs to be analyzed
-            List<thumb> thumbs = new List<thumb>();
-            foreach (var item in videoDetails.videos)
-            {
-                foreach (var shot in item.insights.shots)
+                //Iterate through the results to extract the key frames and thumbnail images to build a list of the thumbs to be analyzed
+                List<thumb> thumbs = new List<thumb>();
+                foreach (var item in videoDetails.videos)
                 {
-                    foreach (var keyFrame in shot.keyFrames)
+                    foreach (var shot in item.insights.shots)
                     {
-                        foreach (var instance in keyFrame.instances)
+                        foreach (var keyFrame in shot.keyFrames)
                         {
-                                //Console.WriteLine(string.Format("{0} : {1} : {2} : {3} : {4}", shot.id, keyFrame.id, instance.thumbnailId, instance.start, instance.end));
-                                thumbs.Add(new thumb
-                                {
-                                    thumbId = instance.thumbnailId,
-                                    image = GetThumb(instance.thumbnailId.ToString(), videoId, videoAccessToken),
-                                    start = (DateTime)instance.start,
-                                end = (DateTime)instance.end
-                            });
-                        }
+                            foreach (var instance in keyFrame.instances)
+                            {
+                                    //Console.WriteLine(string.Format("{0} : {1} : {2} : {3} : {4}", shot.id, keyFrame.id, instance.thumbnailId, instance.start, instance.end));
+                                    thumbs.Add(new thumb
+                                    {
+                                        thumbId = instance.thumbnailId,
+                                        image = GetThumb(instance.thumbnailId.ToString(), videoId, videoAccessToken),
+                                        start = (DateTime)instance.start,
+                                    end = (DateTime)instance.end
+                                });
+                            }
 
+                        }
                     }
                 }
-            }
 
-            //Invoke the matchThumbs method to run thumbs against custom vision
-            List<thumb> predictions = matchThumbs(thumbs);
+                log.Info("Pulled Thumbs");
 
-            //Write results
-            foreach (var prediction in predictions)
-            {
-                log.Info(string.Format("Thumb: {0} - {1} - {2} Start: {3}  End: {4}", prediction.thumbId, prediction.match, prediction.probability,
-                     prediction.start.ToString("HH:mm:ss.ffff"), prediction.end.ToString("HH:mm:ss.ffff")));
-            }
+                //Invoke the matchThumbs method to run thumbs against custom vision
+                List<thumb> predictions = matchThumbs(thumbs);
+                log.Info("Made Predictions");
+                
+                //Write results
+                foreach (var prediction in predictions)
+                {
+                    log.Info(string.Format("Thumb: {0} - {1} - {2} Start: {3}  End: {4}", prediction.thumbId, prediction.match, prediction.probability,
+                         prediction.start.ToString("HH:mm:ss.ffff"), prediction.end.ToString("HH:mm:ss.ffff")));
+                }
 
-            startAndEnd startAndEndFrames = GetStartAndEndFrames(predictions);
+                startAndEnd startAndEndFrames = GetStartAndEndFrames(predictions);
 
-            string responseMsg = string.Format("StartFrame: {0} at {1}", startAndEndFrames.startFrame.thumbId, startAndEndFrames.startFrame.start.ToString("HH:mm:ss.ffff")) + "  "
-                + string.Format("EndFrame: {0} at {1}", startAndEndFrames.endFrame.thumbId, startAndEndFrames.endFrame.end.ToString("HH:mm:ss.ffff"));
-            log.Info(responseMsg);
+                string responseMsg = string.Format("StartFrame: {0} at {1}", startAndEndFrames.startFrame.thumbId, startAndEndFrames.startFrame.start.ToString("HH:mm:ss.ffff")) + "  "
+                    + string.Format("EndFrame: {0} at {1}", startAndEndFrames.endFrame.thumbId, startAndEndFrames.endFrame.end.ToString("HH:mm:ss.ffff"));
+                log.Info(responseMsg);
 
-            return videoDetails != null
-                ? (ActionResult)new OkObjectResult(responseMsg)
+                //Write Output to Blob Storage
+                StreamWriter sw = new StreamWriter(writer);
+                {
+                    sw.Write(JsonConvert.SerializeObject(startAndEndFrames));
+                    sw.Flush();
+                }
+
+                //Write output to HTTP
+                return videoDetails != null
+                ? (ActionResult)new OkObjectResult(JsonConvert.SerializeObject(startAndEndFrames))
                 : new BadRequestObjectResult("Please pass a video Id on the query string");
 
             }
@@ -127,14 +131,19 @@ namespace BrandIdentifier2
         /// <summary>
         /// Loads all of the settings needed for the api calls to Video Indexer and Custom Vision
         /// </summary>
-        static void GetSettings()
+        static void GetSettings(ExecutionContext context)
         {
-            apiUrl = Environment.GetEnvironmentVariable("apiUrl");
-            accountId = Environment.GetEnvironmentVariable("viAccountID");
-            location = Environment.GetEnvironmentVariable("viRegion");
-            apiKey = Environment.GetEnvironmentVariable("viAPIKey");
-            predictionKey = Environment.GetEnvironmentVariable("predictionKey");
-            customVizURL = Environment.GetEnvironmentVariable("customVizURL");
+            var config = new ConfigurationBuilder()
+                .SetBasePath(context.FunctionAppDirectory)
+                .AddJsonFile("local.settings.json", optional: true, reloadOnChange: true)
+                .AddEnvironmentVariables()
+                .Build();
+            apiUrl = config["viApiUrl"];
+            accountId = config["viAccountID"];
+            location = config["viRegion"];
+            apiKey = config["viAPIKey"];
+            predictionKey = config["predictionKey"];
+            customVizURL = config["customVizURL"];
         }
 
         static Stream GetThumb(string thumbId, string videoId, string accessToken)
@@ -219,6 +228,8 @@ namespace BrandIdentifier2
 
             return output;
         }
+
+        
     }
 
     class thumb
