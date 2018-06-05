@@ -1,0 +1,343 @@
+
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workflows_ident_name": {
+            "defaultValue": "ident",
+            "type": "string"
+        },
+        "connections_azureblob_name": {
+            "defaultValue": "azureblob",
+            "type": "string"
+        },
+        "connections_videoindexer_name": {
+            "defaultValue": "videoindexer",
+            "type": "string"
+        },
+        "storageAccountName": {
+            "defaultValue": "jdhident",
+            "type": "string"
+        },
+        "functionAppName":{
+            "type": "string",
+           "metadata": {
+             "description": "Name for Function Apps"
+           } 
+         },
+         "custom_vision_url":{
+             "type": "string",
+             "metadata": {
+                "description": "Custom Vision URL"
+              }
+         },
+         "custom_vision_key":{
+             "type": "securestring",
+             "metadata": {
+                "description": "Custom Vision key"
+              } 
+         },
+         "video_indexer_id":{
+             "type": "string",
+             "metadata": {
+                "description": "Video Indexer Id"
+              } 
+         },
+         "video_indexer_key":{
+             "type": "securestring",
+             "metadata": {
+                "description": "Video Indexer Key"
+              } 
+         },
+         "video_indexer_url":{
+             "type": "string",
+             "metadata": {
+                "description": "Video Indexer URL"
+              } 
+         },
+         "video_indexer_region":{
+             "type": "string",
+             "metadata": {
+                "description": "Video Indexer Region"
+              } 
+         }
+    },
+    "variables": {
+        "hostingPlanName" : "[uniqueString(subscription().subscriptionId)]", 
+        "storageAccountid": "[concat(resourceGroup().id,'/providers/','Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "name": "[parameters('workflows_ident_name')]",
+            "apiVersion": "2017-07-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "When_a_blob_is_added_or_modified_(properties_only)": {
+                            "recurrence": {
+                                "frequency": "Minute",
+                                "interval": 1
+                            },
+                            "splitOn": "@triggerBody()",
+                            "metadata": {
+                                "JTJmcmF3": "/raw"
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureblob']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/datasets/default/triggers/batch/onupdatedfile",
+                                "queries": {
+                                    "folderId": "JTJmcmF3",
+                                    "maxFileCount": 10
+                                }
+                            }
+                        }
+                    },
+                    "actions": {
+                        "Create_SAS_URI_by_path": {
+                            "runAfter": {},
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": {
+                                    "Permissions": "Read"
+                                },
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureblob']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/datasets/default/CreateSharedLinkByPath",
+                                "queries": {
+                                    "path": "@triggerBody()?['Path']"
+                                }
+                            }
+                        },
+                        "HTTP": {
+                            "runAfter": {
+                                "Until": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Http",
+                            "inputs": {
+                                "method": "GET",
+                                "uri": "https://brandid.azurewebsites.net/api/GetBrandPosition/@{body('Upload_video_and_index_(using_a_URL)')}?code=tSH4iadWMy2d3qqZsHaz2xZBMyFXoiZjIValdCi2F3upVjb0/0qGPQ=="
+                            }
+                        },
+                        "Until": {
+                            "actions": {
+                                "Delay": {
+                                    "runAfter": {
+                                        "Get_processing_state": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Wait",
+                                    "inputs": {
+                                        "interval": {
+                                            "count": 30,
+                                            "unit": "Second"
+                                        }
+                                    }
+                                },
+                                "Get_processing_state": {
+                                    "runAfter": {},
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['videoindexer']['connectionId']"
+                                            }
+                                        },
+                                        "method": "get",
+                                        "path": "/Api/Partner/Breakdowns/@{encodeURIComponent(body('Upload_video_and_index_(using_a_URL)'))}/State"
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "Upload_video_and_index_(using_a_URL)": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "expression": "@equals(body('Get_processing_state')?['state'], 'Processed')",
+                            "limit": {
+                                "count": 60,
+                                "timeout": "PT1H"
+                            },
+                            "type": "Until"
+                        },
+                        "Upload_video_and_index_(using_a_URL)": {
+                            "runAfter": {
+                                "Create_SAS_URI_by_path": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['videoindexer']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/Api/Partner/Breakdowns",
+                                "queries": {
+                                    "name": "@triggerBody()?['DisplayName']",
+                                    "privacy": "Private",
+                                    "videoUrl": "@body('Create_SAS_URI_by_path')?['WebUrl']"
+                                }
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "azureblob": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('connections_azureblob_name'))]",
+                                "connectionName": "azureblob",
+                                "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', 'azureblob')]"
+                            },
+                            "videoindexer": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('connections_videoindexer_name'))]",
+                                "connectionName": "videoindexer",
+                                "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', 'videoindexer')]"
+                            }
+                        }
+                    }
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/connections', parameters('connections_azureblob_name'))]",
+                "[resourceId('Microsoft.Web/connections', parameters('connections_videoindexer_name'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "Storage",
+            "name": "[parameters('storageAccountName')]",
+            "apiVersion": "2017-10-01",
+            "location": "[resourceGroup().location]",
+            "tags": {},
+            "scale": null,
+            "properties": {   
+            },
+            "dependsOn": []
+        },
+        {
+            "type": "Microsoft.Web/connections",
+            "name": "[parameters('connections_azureblob_name')]",
+            "apiVersion": "2016-06-01",
+            "location": "[resourceGroup().location]",
+            "scale": null,
+            "properties": {
+                "displayName": "storage",
+                "customParameterValues": {},
+                "parameterValues": {
+                    "accountName": "[parameters('connections_azureblob_name')]",
+                    "accessKey": "[listKeys(variables('storageAccountid'),'2015-05-01-preview').key1]"
+                  },
+                "api": {
+                    "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', parameters('connections_azureblob_name'))]"
+                }
+            },
+            
+            "dependsOn": []
+        },
+        {
+            "type": "Microsoft.Web/connections",
+            "name": "[parameters('connections_videoindexer_name')]",
+            "apiVersion": "2016-06-01",
+            "location": "[resourceGroup().location]",
+            "scale": null,
+            "properties": {
+                "displayName": "[parameters('connections_videoindexer_name')]",
+                "customParameterValues": {},
+                "api": {
+                    "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', parameters('connections_videoindexer_name'))]"
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "apiVersion": "2015-08-01",
+            "type": "Microsoft.Web/sites",
+            "name": "[parameters('functionAppName')]",
+            "location": "[resourceGroup().location]",
+            "kind": "functionapp",            
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+            ],
+            "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+                "siteConfig": {
+                    "appSettings": [
+                        
+                        {
+                            "name": "customVizURL",
+                            "value": "[parameters('custom_vision_url')]"
+                        },
+                        {
+                            "name": "predictionKey",
+                            "value": "[parameters('custom_vision_key')]"
+                        },
+                        {
+                            "name": "storageConnectionString",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+                        },
+                        {
+                            "name": "viAccountID",
+                            "value": "[parameters('video_indexer_id')]"
+                        },
+                        {
+                            "name": "viAPIKey",
+                            "value": "[parameters('video_indexer_key')]"
+                        },
+                        {
+                            "name": "viApiUrl",
+                            "value": "[parameters('video_indexer_url')]"
+                        },
+                        {
+                            "name": "viRegion",
+                            "value": "[parameters('video_indexer_region')]"
+                        }
+                                        ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2015-04-01",
+            "name": "[variables('hostingPlanName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "name": "[variables('hostingPlanName')]",
+                "computeMode": "Dynamic",
+                "sku": "Dynamic"
+            }
+        }
+    ]
+}                
