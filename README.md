@@ -5,7 +5,7 @@ This application identifies custom brands in video
 ## Setup
 
 1. Deploy the infrastructure components:
-    <a href="https://ms.portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fjohndehavilland%BrandIdentifier%2Fmaster%2Fazure-deploy.json" target="_blank">
+    <a href="https://ms.portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fjohndehavilland%2FBrandIdentifier%2Fmaster%2Fazure-deploy.json" target="_blank">
         <img src="http://azuredeploy.net/deploybutton.png"/>
     </a>
 
