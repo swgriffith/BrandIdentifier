@@ -123,7 +123,7 @@ namespace BrandIdentifier2
                 }
 
 
-                //Write output to HTTP
+                //Write output to HTTP as well
                 return videoDetails != null
                 ? (ActionResult)new OkObjectResult(JsonConvert.SerializeObject(startAndEndFrames))
                 : new BadRequestObjectResult("Please pass a video Id on the query string");
@@ -197,7 +197,6 @@ namespace BrandIdentifier2
                     response = client.PostAsync(customVizURL, content).Result;
                     var thumbResult = response.Content.ReadAsStringAsync().Result;
                     CultureInfo provider = CultureInfo.InstalledUICulture;
-                    string timeFormat = "HH:mm:ss.ffffff";
 
                     dynamic customVisionResults = JsonConvert.DeserializeObject(thumbResult);
                     if (customVisionResults.predictions != null)
@@ -207,7 +206,7 @@ namespace BrandIdentifier2
                             decimal probability = (decimal)item.probability;
                                 if (probability >= .02m)
                                 {
-                                    if (item.tagName !="blankscreen")
+                                    if (item.tagName == "brandstartstop")
                                     {
                                         results.Add(new thumb
                                         {
