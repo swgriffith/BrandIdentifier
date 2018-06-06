@@ -30,8 +30,8 @@ namespace BrandIdentifier2
 
         [FunctionName("GetBrandPosition")]
         public static IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "GetBrandPosition/{videoID}")]HttpRequest req,
-            [Blob("results/{videoId}.json", FileAccess.Write, Connection = "storageConnectionString")] Stream writer,
             string videoId,
+            Binder binder,
             TraceWriter log, ExecutionContext context)
         {
             try
@@ -107,12 +107,21 @@ namespace BrandIdentifier2
                     + string.Format("EndFrame: {0} at {1}", startAndEndFrames.endFrame.thumbId, startAndEndFrames.endFrame.end.ToString("HH:mm:ss.ffff"));
                 log.Info(responseMsg);
 
-                //Write Output to Blob Storage
-                StreamWriter sw = new StreamWriter(writer);
+                //To set a filename dynamically we need to use an imperitive binding
+                //the following creates the binding attributes and binding
+                string fileName = videoDetails.name;
+                var attributes = new Attribute[]
                 {
-                    sw.Write(JsonConvert.SerializeObject(startAndEndFrames));
-                    sw.Flush();
+                    new BlobAttribute(blobPath: $"results/{fileName}.json"),
+                    new StorageAccountAttribute("storageConnectionString")
+                };
+
+                using (var writer = binder.BindAsync<TextWriter>(attributes).Result)
+                {
+                    //Write the file to the blob binding
+                    writer.Write(JsonConvert.SerializeObject(startAndEndFrames));
                 }
+
 
                 //Write output to HTTP
                 return videoDetails != null
@@ -127,6 +136,7 @@ namespace BrandIdentifier2
             }
 
         }
+
 
         /// <summary>
         /// Loads all of the settings needed for the api calls to Video Indexer and Custom Vision
@@ -156,6 +166,9 @@ namespace BrandIdentifier2
             // Get thumb
             var thumbRequestResult = client.GetAsync($"{apiUrl}/{location}/Accounts/{accountId}/Videos/{videoId}/Thumbnails/{thumbId}?accessToken={accessToken}").Result;
             Stream thumbResult = thumbRequestResult.Content.ReadAsStreamAsync().Result;
+
+            //Added the following for local testing purposes to output the thumbs to a local folder for inspection
+            //WriteFile(thumbResult, thumbId);
 
             return thumbResult;
         }
@@ -217,6 +230,15 @@ namespace BrandIdentifier2
             }
             return results;
 
+        }
+
+        static void WriteFile(Stream file, string fileName)
+        {
+            using (var fileStream = File.Create(string.Format("{0}.jpg", fileName)))
+            {
+                file.Seek(0, SeekOrigin.Begin);
+                file.CopyTo(fileStream);
+            }
         }
 
         static startAndEnd GetStartAndEndFrames(List<thumb> input)
