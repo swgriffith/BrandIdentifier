@@ -32,7 +32,8 @@ namespace BrandIdentifier2
         public static IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "GetBrandPosition/{videoID}")]HttpRequest req,
             string videoId,
             Binder binder,
-            TraceWriter log, ExecutionContext context)
+            TraceWriter log, 
+            ExecutionContext context)
         {
             try
             {
