@@ -32,7 +32,8 @@ namespace BrandIdentifier2
         public static IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "GetBrandPosition/{videoID}")]HttpRequest req,
             string videoId,
             Binder binder,
-            TraceWriter log, ExecutionContext context)
+            TraceWriter log, 
+            ExecutionContext context)
         {
             try
             {
@@ -102,6 +103,7 @@ namespace BrandIdentifier2
                 }
 
                 startAndEnd startAndEndFrames = GetStartAndEndFrames(predictions);
+                startAndEndFrames.fileName = videoDetails.name;
 
                 string responseMsg = string.Format("StartFrame: {0} at {1}", startAndEndFrames.startFrame.thumbId, startAndEndFrames.startFrame.start.ToString("HH:mm:ss.ffff")) + "  "
                     + string.Format("EndFrame: {0} at {1}", startAndEndFrames.endFrame.thumbId, startAndEndFrames.endFrame.end.ToString("HH:mm:ss.ffff"));
@@ -109,10 +111,9 @@ namespace BrandIdentifier2
 
                 //To set a filename dynamically we need to use an imperitive binding
                 //the following creates the binding attributes and binding
-                string fileName = videoDetails.name;
                 var attributes = new Attribute[]
                 {
-                    new BlobAttribute(blobPath: $"results/{fileName}.json"),
+                    new BlobAttribute(blobPath: $"results/{startAndEndFrames.fileName}.json"),
                     new StorageAccountAttribute("storageConnectionString")
                 };
 
@@ -265,6 +266,7 @@ namespace BrandIdentifier2
 
     class startAndEnd
     {
+        public string fileName { get; set; }
         public thumb startFrame { get; set; }
         public thumb endFrame { get; set; }
 
