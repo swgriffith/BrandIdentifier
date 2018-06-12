@@ -37,7 +37,7 @@ namespace BrandIdentifier2
         {
             try
             {
-                log.Info("C# HTTP trigger function processed a request.");
+                log.Info("Brand position request recieved.");
                 log.Info(string.Format("videoID: {0}", videoId));
 
                 GetSettings(context);
@@ -63,8 +63,13 @@ namespace BrandIdentifier2
                 var videoRequestResult = client.GetAsync($"{apiUrl}/{location}/Accounts/{accountId}/Videos/{videoId}/Index?accessToken={videoAccessToken}").Result;
                 var videoResult = videoRequestResult.Content.ReadAsStringAsync().Result;
 
-               dynamic videoDetails = JsonConvert.DeserializeObject(videoResult);
+                dynamic videoDetails = JsonConvert.DeserializeObject(videoResult);
 
+                // Get video download URL
+                var videoDownloadURLResult = client.GetAsync($"{apiUrl}/{location}/Accounts/{accountId}/Videos/{videoId}/SourceFile/DownloadUrl?accessToken={videoAccessToken}").Result;
+                string videoDowloadURL = JsonConvert.DeserializeObject(videoDownloadURLResult.Content.ReadAsStringAsync().Result).ToString();
+
+                
                 //Iterate through the results to extract the key frames and thumbnail images to build a list of the thumbs to be analyzed
                 List<thumb> thumbs = new List<thumb>();
                 foreach (var item in videoDetails.videos)
