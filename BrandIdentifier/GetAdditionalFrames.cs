@@ -48,8 +48,8 @@ namespace BrandIdentifier
 
             log.Info($"Args: {psi.Arguments}");
             var process = Process.Start(psi);
-            //log.Info(process.StandardOutput.ReadToEnd());
-            //log.Info(process.StandardError.ReadToEnd());
+            log.Info(process.StandardOutput.ReadToEnd());
+            log.Info(process.StandardError.ReadToEnd());
             process.WaitForExit((int)TimeSpan.FromSeconds(60).TotalMilliseconds);
 
             List<frame> frameList = new List<frame>();
@@ -85,6 +85,9 @@ namespace BrandIdentifier
 
             var match = frameList.OrderByDescending(x => x.matchProb).First();
             var newTime = GetNewTime(start, match.id-3);
+
+            //Cleaup Files
+            CleanupFiles();
 
             if (newTime != null && vidurl !=null)
             {
@@ -147,6 +150,15 @@ namespace BrandIdentifier
                 .Build();
             predictionKey = config["predictionKey"];
             customVizURL = config["customVizURL"];
+        }
+
+        static void CleanupFiles()
+        {
+            string[] thumbList = Directory.GetFiles("./", "*.jpg");
+            foreach (string file in thumbList)
+            {
+                File.Delete(file);
+            }
         }
     }
 
