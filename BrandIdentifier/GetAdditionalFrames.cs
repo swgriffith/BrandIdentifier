@@ -34,6 +34,8 @@ namespace BrandIdentifier
 
             string position = WebUtility.UrlDecode(req.Query["position"]);
             string fileName = WebUtility.UrlDecode(req.Query["filename"]);
+            bool isStart = Convert.ToBoolean(WebUtility.UrlDecode(req.Query["isstart"]));
+
             string vidurl = new StreamReader(req.Body).ReadToEnd();
             string start = GetStartTime(position);
             log.Info(Directory.GetCurrentDirectory());
