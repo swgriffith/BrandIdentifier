@@ -53,8 +53,8 @@ namespace BrandIdentifier
 
             log.Info($"Args: {psi.Arguments}");
             var process = Process.Start(psi);
-            log.Info(process.StandardOutput.ReadToEnd());
-            log.Info(process.StandardError.ReadToEnd());
+            //log.Info(process.StandardOutput.ReadToEnd());
+            //log.Info(process.StandardError.ReadToEnd());
             process.WaitForExit((int)TimeSpan.FromSeconds(60).TotalMilliseconds);
 
             List<frame> frameList = new List<frame>();

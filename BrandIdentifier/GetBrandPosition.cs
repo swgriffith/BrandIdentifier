@@ -273,7 +273,7 @@ namespace BrandIdentifier2
             // Add a new Request Message
             HttpRequestMessage requestMessage = new HttpRequestMessage();
             requestMessage.Content = new StringContent(vidSASURL, Encoding.UTF8, "test/plain");
-            requestMessage.RequestUri = new Uri($"{frameRefineFuncURL}?position={refineFrom.ToString("hh\\:mm\\:ss\\.fff")}&filename={fileName}&isstart={isStart}");
+            requestMessage.RequestUri = new Uri($"{frameRefineFuncURL}?position={refineFrom.TimeOfDay.ToString("hh\\:mm\\:ss\\.fff")}&filename={fileName}&isstart={isStart}");
 
             var refineRequestResult = client.SendAsync(requestMessage).Result;
             DateTime refinedTime = DateTime.Parse(refineRequestResult.Content.ReadAsStringAsync().Result.ToString());
