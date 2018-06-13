@@ -13,7 +13,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
-
+using System.Text;
 
 namespace BrandIdentifier2
 {
@@ -27,6 +27,9 @@ namespace BrandIdentifier2
         //CustomVision Settings
         static string predictionKey;
         static string customVizURL;
+        //Frame refine values
+        static string vidSASURL;
+        static string frameRefineFuncURL;
 
         [FunctionName("GetBrandPosition")]
         public static IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "GetBrandPosition/{videoID}")]HttpRequest req,
@@ -42,6 +45,9 @@ namespace BrandIdentifier2
 
                 GetSettings(context);
                 log.Info("Retrieved Settings");
+
+                //Pull the video blob SAS for later use
+                vidSASURL = new StreamReader(req.Body).ReadToEnd();
 
                 //set the TLS level used
                 System.Net.ServicePointManager.SecurityProtocol = System.Net.ServicePointManager.SecurityProtocol | System.Net.SecurityProtocolType.Tls12;
@@ -101,17 +107,15 @@ namespace BrandIdentifier2
                 log.Info("Made Predictions");
                 
                 //Write results
-                foreach (var prediction in predictions)
+                foreach (thumb prediction in predictions)
                 {
-                    log.Info(string.Format("Thumb: {0} - {1} - {2} Start: {3}  End: {4}", prediction.thumbId, prediction.match, prediction.probability,
-                         prediction.start.ToString("HH:mm:ss.ffff"), prediction.end.ToString("HH:mm:ss.ffff")));
+                    log.Info(message: $"Thumb: {prediction.thumbId} - {prediction.match} - {prediction.probability} Start: {prediction.start.ToString("HH:mm:ss.ffff")}  End: {prediction.end.ToString("HH:mm:ss.ffff")}");
                 }
 
-                startAndEnd startAndEndFrames = GetStartAndEndFrames(predictions);
-                startAndEndFrames.fileName = videoDetails.name;
-
-                string responseMsg = string.Format("StartFrame: {0} at {1}", startAndEndFrames.startFrame.thumbId, startAndEndFrames.startFrame.start.ToString("HH:mm:ss.ffff")) + "  "
-                    + string.Format("EndFrame: {0} at {1}", startAndEndFrames.endFrame.thumbId, startAndEndFrames.endFrame.end.ToString("HH:mm:ss.ffff"));
+                startAndEndOutput startAndEndFrames = GetStartAndEndFrames(predictions, videoDetails.name.ToString());
+                
+                string responseMsg = string.Format("StartFrame: {0}", startAndEndFrames.startTime) + "  "
+                    + string.Format("EndFrame: {0}", startAndEndFrames.endTime);
                 log.Info(responseMsg);
 
                 //To set a filename dynamically we need to use an imperitive binding
@@ -144,6 +148,8 @@ namespace BrandIdentifier2
         }
 
 
+
+
         /// <summary>
         /// Loads all of the settings needed for the api calls to Video Indexer and Custom Vision
         /// </summary>
@@ -160,6 +166,7 @@ namespace BrandIdentifier2
             apiKey = config["viAPIKey"];
             predictionKey = config["predictionKey"];
             customVizURL = config["customVizURL"];
+            frameRefineFuncURL = config["frameRefineFuncURL"];
         }
 
         static Stream GetThumb(string thumbId, string videoId, string accessToken)
@@ -246,14 +253,32 @@ namespace BrandIdentifier2
             }
         }
 
-        static startAndEnd GetStartAndEndFrames(List<thumb> input)
+        static startAndEndOutput GetStartAndEndFrames(List<thumb> input, string fileName)
         {
-            startAndEnd output = new startAndEnd();
+            startAndEndOutput output = new startAndEndOutput();
 
-            output.startFrame = input.OrderBy(a => a.start).First();
-            output.endFrame = input.OrderBy(a => a.end).Last();
+            output.startTime = frameRefine((input.OrderBy(a => a.start).First().start), fileName, true);
+            output.endTime = frameRefine((input.OrderBy(a => a.end).Last().end), fileName, false);
+            output.fileName = fileName;
 
             return output;
+        }
+
+        static DateTime frameRefine(DateTime refineFrom, string fileName, bool isStart)
+        {
+            // create the http client
+            var handler = new HttpClientHandler();
+            handler.AllowAutoRedirect = false;
+            var client = new HttpClient(handler);
+            // Add a new Request Message
+            HttpRequestMessage requestMessage = new HttpRequestMessage();
+            requestMessage.Content = new StringContent(vidSASURL, Encoding.UTF8, "test/plain");
+            requestMessage.RequestUri = new Uri($"{frameRefineFuncURL}?position={refineFrom.ToString("hh\\:mm\\:ss\\.fff")}&filename={fileName}&isstart={isStart}");
+
+            var refineRequestResult = client.SendAsync(requestMessage).Result;
+            DateTime refinedTime = DateTime.Parse(refineRequestResult.Content.ReadAsStringAsync().Result.ToString());
+            
+            return refinedTime;
         }
 
         
@@ -274,6 +299,14 @@ namespace BrandIdentifier2
         public string fileName { get; set; }
         public thumb startFrame { get; set; }
         public thumb endFrame { get; set; }
+
+    }
+
+    class startAndEndOutput
+    {
+        public string fileName { get; set; }
+        public DateTime startTime { get; set; }
+        public DateTime endTime { get; set; }
 
     }
 }
