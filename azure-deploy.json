@@ -323,8 +323,11 @@
                         {
                             "name": "viRegion",
                             "value": "[parameters('video_indexer_region')]"
+                        },{
+                            "name":"frameRefineFuncURL",
+                            "value":"[concat('https://', parameters('functionAppName'), '.azurewebsites.net/api/GetAdditionalFrames')]"
                         }
-                                        ]
+                    ]
                 }
             }
         },
