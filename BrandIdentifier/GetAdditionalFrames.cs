@@ -27,7 +27,7 @@ namespace BrandIdentifier
         public static IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequest req,
             TraceWriter log,
             ExecutionContext context)
-        {
+        { 
             log.Info("Call invoked to get video frames.");
 
             GetSettings(context);
@@ -35,9 +35,14 @@ namespace BrandIdentifier
             string position = WebUtility.UrlDecode(req.Query["position"]);
             string fileName = WebUtility.UrlDecode(req.Query["filename"]);
             bool isStart = Convert.ToBoolean(WebUtility.UrlDecode(req.Query["isstart"]));
+            string brandSpecificTag = "brand_specific_end";
+            if (isStart)
+            {
+                brandSpecificTag = "brand_specific_start";
+            }
 
             string vidurl = new StreamReader(req.Body).ReadToEnd();
-            string start = GetStartTime(position);
+            string start = GetStartTime(position, isStart);
             log.Info(Directory.GetCurrentDirectory());
             var psi = new ProcessStartInfo();
             psi.FileName = @".\ffmpeg\ffmpeg.exe";
@@ -66,7 +71,7 @@ namespace BrandIdentifier
                         decimal probability = (decimal)item.probability;
                         if (probability >= .02m)
                         {
-                            if (item.tagName == "brand_specific")
+                            if (item.tagName == brandSpecificTag)
                             {
                                 frameList.Add(new frame
                                 {
@@ -84,7 +89,16 @@ namespace BrandIdentifier
             }
 
             var match = frameList.OrderByDescending(x => x.matchProb).First();
-            var newTime = GetNewTime(start, match.id-3);
+            string newTime = "";
+            if (isStart)
+            {
+                newTime = GetNewTime(start, match.id - 3);
+            }
+            else
+            {
+                newTime = GetNewTime(start, match.id + 3);
+
+            }
 
             //Cleaup Files
             CleanupFiles();
@@ -109,10 +123,15 @@ namespace BrandIdentifier
             return final.ToString("hh\\:mm\\:ss\\.fff");
         }
 
-        private static string GetStartTime(string startPos)
+        private static string GetStartTime(string startPos ,bool isStart)
         {
             TimeSpan s = TimeSpan.Parse(startPos);
-            double startFrame = (s.TotalSeconds * 25) - 15;
+
+            double startFrame = (s.TotalSeconds * 25);
+            if (isStart)
+            {
+                startFrame = startFrame - 15;
+            }
             double seconds = startFrame / 25;
             TimeSpan final = TimeSpan.FromSeconds(seconds);
             return final.ToString("hh\\:mm\\:ss\\.fff");
