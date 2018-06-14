@@ -47,15 +47,16 @@ namespace BrandIdentifier
             var psi = new ProcessStartInfo();
             psi.FileName = @".\ffmpeg\ffmpeg.exe";
             psi.Arguments = $"-i \"{vidurl}\" -ss {start} -frames:v 15 {fileName}_%d.jpg";
-            psi.RedirectStandardOutput = true;
-            psi.RedirectStandardError = true;
-            psi.UseShellExecute = false;
+            //psi.RedirectStandardOutput = true;
+            //psi.RedirectStandardError = true;
+            psi.UseShellExecute = true;
 
             log.Info($"Args: {psi.Arguments}");
             var process = Process.Start(psi);
             //log.Info(process.StandardOutput.ReadToEnd());
             //log.Info(process.StandardError.ReadToEnd());
-            process.WaitForExit((int)TimeSpan.FromSeconds(60).TotalMilliseconds);
+            //process.WaitForExit((int)TimeSpan.FromSeconds(300).TotalMilliseconds);
+            process.WaitForExit();
 
             List<frame> frameList = new List<frame>();
 
@@ -88,24 +89,29 @@ namespace BrandIdentifier
                 //log.Info(result);
             }
 
-            var match = frameList.OrderByDescending(x => x.matchProb).First();
-            string newTime = "";
-            if (isStart)
+            //Assume that the initial position is best and then check results to refine
+            string newTime = position;
+            if (frameList.Count != 0)
             {
-                newTime = GetNewTime(start, match.id - 3);
-            }
-            else
-            {
-                newTime = GetNewTime(start, match.id + 3);
+                var match = frameList.OrderByDescending(x => x.matchProb).First();
 
-            }
+                if (isStart)
+                {
+                    newTime = GetNewTime(start, match.id - 3);
+                }
+                else
+                {
+                    newTime = GetNewTime(start, match.id + 3);
 
+                }
+            }
+            
             //Cleaup Files
             CleanupFiles();
 
             if (newTime != null && vidurl !=null)
             {
-                return (ActionResult)new OkObjectResult($"position={newTime} vidurl={vidurl}");
+                return (ActionResult)new OkObjectResult(newTime);
             }
             else
             {
@@ -145,7 +151,7 @@ namespace BrandIdentifier
             client.DefaultRequestHeaders.Add("Prediction-Key", predictionKey);
             // Get custom vision prediction
             HttpResponseMessage response;
-
+            
             using (var content = new StreamContent(new FileStream(fileName, FileMode.Open, FileAccess.Read)))
             {
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");

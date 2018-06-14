@@ -217,7 +217,7 @@ namespace BrandIdentifier2
                         foreach (var item in customVisionResults.predictions)
                         {
                             decimal probability = (decimal)item.probability;
-                                if (probability >= .02m)
+                                if (probability >= .5m)
                                 {
                                     if (item.tagName == "brandstartstop")
                                     {
@@ -266,19 +266,27 @@ namespace BrandIdentifier2
 
         static DateTime frameRefine(DateTime refineFrom, string fileName, bool isStart)
         {
-            // create the http client
-            var handler = new HttpClientHandler();
-            handler.AllowAutoRedirect = false;
-            var client = new HttpClient(handler);
-            // Add a new Request Message
-            HttpRequestMessage requestMessage = new HttpRequestMessage();
-            requestMessage.Content = new StringContent(vidSASURL, Encoding.UTF8, "test/plain");
-            requestMessage.RequestUri = new Uri($"{frameRefineFuncURL}?position={refineFrom.TimeOfDay.ToString("hh\\:mm\\:ss\\.fff")}&filename={fileName}&isstart={isStart}");
+            try
+            {
+                // create the http client
+                var handler = new HttpClientHandler();
+                handler.AllowAutoRedirect = false;
+                var client = new HttpClient(handler);
+                // Add a new Request Message
+                HttpRequestMessage requestMessage = new HttpRequestMessage();
+                requestMessage.Content = new StringContent(vidSASURL, Encoding.UTF8, "test/plain");
+                requestMessage.RequestUri = new Uri($"{frameRefineFuncURL}?position={refineFrom.TimeOfDay.ToString("hh\\:mm\\:ss\\.fff")}&filename={fileName}&isstart={isStart}");
 
-            var refineRequestResult = client.SendAsync(requestMessage).Result;
-            DateTime refinedTime = DateTime.Parse(refineRequestResult.Content.ReadAsStringAsync().Result.ToString());
-            
-            return refinedTime;
+                var refineRequestResult = client.SendAsync(requestMessage).Result;
+                DateTime refinedTime = DateTime.Parse(refineRequestResult.Content.ReadAsStringAsync().Result.ToString());
+
+                return refinedTime;
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+
         }
 
         
