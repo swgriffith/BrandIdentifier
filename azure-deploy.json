@@ -135,7 +135,47 @@
                                 }
                             }
                         },
+                        "Create_blob": {
+                            "runAfter": {
+                                "HTTP_3": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": "@body('HTTP_3')",
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureblob']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/datasets/default/files",
+                                "queries": {
+                                    "folderPath": "/results",
+                                    "name": "@{triggerBody()?['Name']}.json",
+                                    "queryParametersSingleEncoded": true
+                                }
+                            },
+                            "runtimeConfiguration": {
+                                "contentTransfer": {
+                                    "transferMode": "Chunked"
+                                }
+                            }
+                        },
                         "HTTP": {
+                            "runAfter": {
+                                "HTTP_2": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Http",
+                            "inputs": {
+                                "method": "GET",
+                                "uri": "[concat('https://', 'replaceme')]"
+                            }
+                        },
+                        "HTTP_2": {
                             "runAfter": {
                                 "Until": [
                                     "Succeeded"
@@ -143,8 +183,22 @@
                             },
                             "type": "Http",
                             "inputs": {
-                                "method": "GET",
-                                "uri": "https://REPLACEME/api/GetBrandPosition/@{body('Upload_video_and_index_(using_a_URL)')}?code=YOUR_KEY"
+                                "body": "@body('Create_SAS_URI_by_path')?['WebUrl']",
+                                "method": "POST",
+                                "uri": "[concat('https://', 'replaceme')]"
+                            }
+                        },
+                        "HTTP_3": {
+                            "runAfter": {
+                                "HTTP": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Http",
+                            "inputs": {
+                                "body": "@body('HTTP')",
+                                "method": "POST",
+                                "uri": "[concat('https://', 'replaceme')]"
                             }
                         },
                         "Until": {
