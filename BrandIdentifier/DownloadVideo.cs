@@ -19,19 +19,19 @@ namespace BrandIdentifier
         static bool downloadComplete = false;
 
         [FunctionName("DownloadVideo")]
-        public static IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequest req, TraceWriter log)
+        public static IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequest req, TraceWriter log, ExecutionContext context)
         {
             log.Info("Video File Download started.");
-
+            GetSettings(context);
             string fileName = WebUtility.UrlDecode(req.Query["filename"]);
             string vidurl = new StreamReader(req.Body).ReadToEnd();
 
-            DownloadFile(vidurl, fileName);
+            DownloadFile(vidurl, fileName, log);
 
-            do
-            {
+            //do
+            //{
 
-            } while (!downloadComplete);
+            //} while (!downloadComplete);
 
             if (fileName != null || vidurl != null)
             {
@@ -57,12 +57,13 @@ namespace BrandIdentifier
             downloadPath = config["downloadPath"];
         }
 
-        private static void DownloadFile(string fileUri, string fileName)
+        private static void DownloadFile(string fileUri, string fileName, TraceWriter log)
         {
             WebClient myWebClient = new WebClient();
-            myWebClient.DownloadFileAsync(new Uri(fileUri), fileName);
-
-            myWebClient.DownloadFileCompleted += _downloadComplete;
+            log.Info("Writing to: " + fileName);
+            myWebClient.DownloadFile(new Uri(fileUri), Path.Combine(downloadPath, fileName));
+            
+            //myWebClient.DownloadFileCompleted += _downloadComplete;
         }
 
         private static void _downloadComplete(object sender, AsyncCompletedEventArgs e)

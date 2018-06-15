@@ -124,19 +124,19 @@ namespace BrandIdentifier2
                     + string.Format("EndFrame: {0}", startAndEndFrames.endTime);
                 log.Info(responseMsg);
 
-                //To set a filename dynamically we need to use an imperitive binding
-                //the following creates the binding attributes and binding
-                var attributes = new Attribute[]
-                {
-                    new BlobAttribute(blobPath: $"results/{startAndEndFrames.fileName}.json"),
-                    new StorageAccountAttribute("storageConnectionString")
-                };
+                ////To set a filename dynamically we need to use an imperitive binding
+                ////the following creates the binding attributes and binding
+                //var attributes = new Attribute[]
+                //{
+                //    new BlobAttribute(blobPath: $"results/{startAndEndFrames.fileName}.json"),
+                //    new StorageAccountAttribute("storageConnectionString")
+                //};
 
-                using (var writer = binder.BindAsync<TextWriter>(attributes).Result)
-                {
-                    //Write the file to the blob binding
-                    writer.Write(JsonConvert.SerializeObject(startAndEndFrames));
-                }
+                //using (var writer = binder.BindAsync<TextWriter>(attributes).Result)
+                //{
+                //    //Write the file to the blob binding
+                //    writer.Write(JsonConvert.SerializeObject(startAndEndFrames));
+                //}
 
 
                 //Write output to HTTP as well
@@ -339,11 +339,19 @@ namespace BrandIdentifier2
 
     }
 
-    class startAndEndOutput
+    public class startAndEndOutput
     {
         public string fileName { get; set; }
         public DateTime startTime { get; set; }
         public DateTime endTime { get; set; }
+
+    }
+
+    public class AddtlStartAndEndOutput
+    {
+        public string fileName { get; set; }
+        public string startTime { get; set; }
+        public string endTime { get; set; }
 
     }
 }

@@ -44,9 +44,15 @@
               } 
          },
          "video_indexer_key":{
+            "type": "securestring",
+            "metadata": {
+               "description": "Video Indexer Key"
+             } 
+        },
+         "video_indexer_key_logic":{
              "type": "securestring",
              "metadata": {
-                "description": "Video Indexer Key"
+                "description": "Logic App Video Indexer Key"
               } 
          },
          "video_indexer_url":{
@@ -129,7 +135,47 @@
                                 }
                             }
                         },
+                        "Create_blob": {
+                            "runAfter": {
+                                "HTTP_3": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": "@body('HTTP_3')",
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureblob']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/datasets/default/files",
+                                "queries": {
+                                    "folderPath": "/results",
+                                    "name": "@{triggerBody()?['Name']}.json",
+                                    "queryParametersSingleEncoded": true
+                                }
+                            },
+                            "runtimeConfiguration": {
+                                "contentTransfer": {
+                                    "transferMode": "Chunked"
+                                }
+                            }
+                        },
                         "HTTP": {
+                            "runAfter": {
+                                "HTTP_2": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Http",
+                            "inputs": {
+                                "method": "GET",
+                                "uri": "[concat('https://', 'replaceme')]"
+                            }
+                        },
+                        "HTTP_2": {
                             "runAfter": {
                                 "Until": [
                                     "Succeeded"
@@ -137,8 +183,22 @@
                             },
                             "type": "Http",
                             "inputs": {
-                                "method": "GET",
-                                "uri": "https://REPLACEME/api/GetBrandPosition/@{body('Upload_video_and_index_(using_a_URL)')}?code=YOUR_KEY"
+                                "body": "@body('Create_SAS_URI_by_path')?['WebUrl']",
+                                "method": "POST",
+                                "uri": "[concat('https://', 'replaceme')]"
+                            }
+                        },
+                        "HTTP_3": {
+                            "runAfter": {
+                                "HTTP": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Http",
+                            "inputs": {
+                                "body": "@body('HTTP')",
+                                "method": "POST",
+                                "uri": "[concat('https://', 'replaceme')]"
                             }
                         },
                         "Until": {
@@ -276,7 +336,7 @@
                 "displayName": "[parameters('connections_videoindexer_name')]",
                 "customParameterValues": {},
                 "parameterValues": {
-                    "api_key": "[parameters('video_indexer_key')]"
+                    "api_key": "[parameters('video_indexer_key_logic')]"
                   },
                 "api": {
                     "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', parameters('connections_videoindexer_name'))]"
@@ -329,7 +389,35 @@
                         },{
                             "name":"frameRefineFuncURL",
                             "value":"[concat('https://', parameters('functionAppName'), '.azurewebsites.net/api/GetAdditionalFrames')]"
-                        }
+                        },
+                        {
+                            "name": "downloadPath",
+                            "value": "D:\\home\\site\\wwwroot"
+                        },
+                        {
+                            "name": "AzureWebJobsDashboard",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+                          },
+                          {
+                            "name": "AzureWebJobsStorage",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+                          },
+                          {
+                            "name": "FUNCTIONS_EXTENSION_VERSION",
+                            "value": "~2"
+                          },
+                          {
+                            "name": "WEBSITE_NODE_DEFAULT_VERSION",
+                            "value": "6.5.0"
+                          },
+                          {
+                            "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+                          },
+                          {
+                            "name": "WEBSITE_CONTENTSHARE",
+                            "value": "[toLower(parameters('functionAppName'))]"
+                          }
                     ]
                 }
             }
