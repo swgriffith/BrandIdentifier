@@ -8,6 +8,8 @@ This application identifies custom brands in video
 
 1. Setup your Video Indexer account. Go to [videoindexer.ai](https://videoindexer.ai) and log in with your corporate account. Once here, click on your name and choose settings.
 
+![VI settings](images/vi-settings.png)
+
 2. Grab your account id and make a note of it somewhere.
 
 3. Go to [https://api-portal.videoindexer.ai](https://api-portal.videoindexer.ai). 
