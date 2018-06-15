@@ -8,9 +8,11 @@ using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -30,6 +32,8 @@ namespace BrandIdentifier2
         //Frame refine values
         static string vidSASURL;
         static string frameRefineFuncURL;
+
+        static bool downloadComplete = false;
 
         [FunctionName("GetBrandPosition")]
         public static IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "GetBrandPosition/{videoID}")]HttpRequest req,
@@ -75,6 +79,8 @@ namespace BrandIdentifier2
                 var videoDownloadURLResult = client.GetAsync($"{apiUrl}/{location}/Accounts/{accountId}/Videos/{videoId}/SourceFile/DownloadUrl?accessToken={videoAccessToken}").Result;
                 string videoDowloadURL = JsonConvert.DeserializeObject(videoDownloadURLResult.Content.ReadAsStringAsync().Result).ToString();
 
+                log.Info("Download Starting");
+                DownloadFile(videoDowloadURL, videoDetails.name.ToString());
                 
                 //Iterate through the results to extract the key frames and thumbnail images to build a list of the thumbs to be analyzed
                 List<thumb> thumbs = new List<thumb>();
@@ -103,7 +109,7 @@ namespace BrandIdentifier2
                 log.Info("Pulled Thumbs");
 
                 //Invoke the matchThumbs method to run thumbs against custom vision
-                List<thumb> predictions = matchThumbs(thumbs);
+                List<thumb> predictions = matchThumbs(thumbs, log);
                 log.Info("Made Predictions");
                 
                 //Write results
@@ -112,7 +118,7 @@ namespace BrandIdentifier2
                     log.Info(message: $"Thumb: {prediction.thumbId} - {prediction.match} - {prediction.probability} Start: {prediction.start.ToString("HH:mm:ss.ffff")}  End: {prediction.end.ToString("HH:mm:ss.ffff")}");
                 }
 
-                startAndEndOutput startAndEndFrames = GetStartAndEndFrames(predictions, videoDetails.name.ToString());
+                startAndEndOutput startAndEndFrames = GetStartAndEndFrames(predictions, videoDetails.name.ToString(), log);
                 
                 string responseMsg = string.Format("StartFrame: {0}", startAndEndFrames.startTime) + "  "
                     + string.Format("EndFrame: {0}", startAndEndFrames.endTime);
@@ -169,6 +175,17 @@ namespace BrandIdentifier2
             frameRefineFuncURL = config["frameRefineFuncURL"];
         }
 
+        private static void DownloadFile(string fileUri, string fileName)
+        {
+            WebClient myWebClient = new WebClient();
+            myWebClient.DownloadFileCompleted += _downloadComplete;
+            myWebClient.DownloadFileAsync(new Uri(fileUri), fileName);
+        }
+        private static void _downloadComplete(object sender, AsyncCompletedEventArgs e)
+        {
+            downloadComplete = true;
+        }
+
         static Stream GetThumb(string thumbId, string videoId, string accessToken)
         {
             // create the http client
@@ -191,7 +208,7 @@ namespace BrandIdentifier2
         /// </summary>
         /// <param name="thumbs">List of thumb objects</param>
         /// <returns>List of matched thumb objects</returns>
-        static List<thumb> matchThumbs(List<thumb> thumbs)
+        static List<thumb> matchThumbs(List<thumb> thumbs, TraceWriter log)
         {
             List<thumb> results = new List<thumb>();
 
@@ -237,7 +254,7 @@ namespace BrandIdentifier2
                     }
                 }
 
-                //TODO: Need to slow downt he process to avoid CustomeVision throttling. Should remove this later.
+                //TODO: Need to slow downt he process to avoid CustomVision throttling. Should remove this later.
                 System.Threading.Thread.Sleep(1000);
             }
             return results;
@@ -253,25 +270,34 @@ namespace BrandIdentifier2
             }
         }
 
-        static startAndEndOutput GetStartAndEndFrames(List<thumb> input, string fileName)
+        static startAndEndOutput GetStartAndEndFrames(List<thumb> input, string fileName, TraceWriter log)
         {
             startAndEndOutput output = new startAndEndOutput();
 
-            output.startTime = frameRefine((input.OrderBy(a => a.start).First().start), fileName, true);
-            output.endTime = frameRefine((input.OrderBy(a => a.end).Last().end), fileName, false);
+            //Wait for download to complete
+            log.Info("Waiting for Download to Complete");
+            do
+            {
+                //wait
+            } while (!downloadComplete);
+            log.Info("Download Complete");
+            output.startTime = frameRefine((input.OrderBy(a => a.start).First().start), fileName, true, log);
+            output.endTime = frameRefine((input.OrderBy(a => a.end).Last().end), fileName, false, log);
             output.fileName = fileName;
 
             return output;
         }
 
-        static DateTime frameRefine(DateTime refineFrom, string fileName, bool isStart)
+        static DateTime frameRefine(DateTime refineFrom, string fileName, bool isStart, TraceWriter log)
         {
             try
             {
+                log.Info($"refineFrom: {refineFrom.TimeOfDay.ToString("hh\\:mm\\:ss\\.fff")} fileName: {fileName} isStart: {isStart}");
                 // create the http client
                 var handler = new HttpClientHandler();
                 handler.AllowAutoRedirect = false;
                 var client = new HttpClient(handler);
+                client.Timeout = TimeSpan.FromMilliseconds(300);
                 // Add a new Request Message
                 HttpRequestMessage requestMessage = new HttpRequestMessage();
                 requestMessage.Content = new StringContent(vidSASURL, Encoding.UTF8, "test/plain");

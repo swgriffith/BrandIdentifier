@@ -14,6 +14,7 @@ using System.Net.Http.Headers;
 using Microsoft.Extensions.Configuration;
 using System.Collections.Generic;
 using System.Linq;
+using System.ComponentModel;
 
 namespace BrandIdentifier
 {
@@ -22,6 +23,8 @@ namespace BrandIdentifier
         //CustomVision Settings
         static string predictionKey;
         static string customVizURL;
+        static string downloadPath;
+        static bool downloadComplete = false;
 
         [FunctionName("GetAdditionalFrames")]
         public static IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequest req,
@@ -29,27 +32,39 @@ namespace BrandIdentifier
             ExecutionContext context)
         { 
             log.Info("Call invoked to get video frames.");
-
+            
             GetSettings(context);
 
             string position = WebUtility.UrlDecode(req.Query["position"]);
             string fileName = WebUtility.UrlDecode(req.Query["filename"]);
             bool isStart = Convert.ToBoolean(WebUtility.UrlDecode(req.Query["isstart"]));
+            string vidurl = new StreamReader(req.Body).ReadToEnd();
+
+            if (!File.Exists(fileName))
+            {
+                log.Info($"Downloading: {vidurl}");
+                DownloadFile(vidurl, $"{downloadPath}\\{fileName}");
+                do
+                {
+                } while (!downloadComplete);
+
+                log.Info("Download complete.");
+            }
+
             string brandSpecificTag = "brand_specific_end";
             if (isStart)
             {
                 brandSpecificTag = "brand_specific_start";
             }
 
-            string vidurl = new StreamReader(req.Body).ReadToEnd();
             string start = GetStartTime(position, isStart);
             log.Info(Directory.GetCurrentDirectory());
             var psi = new ProcessStartInfo();
             psi.FileName = @".\ffmpeg\ffmpeg.exe";
-            psi.Arguments = $"-i \"{vidurl}\" -ss {start} -frames:v 15 {fileName}_%d.jpg";
+            psi.Arguments = $"-i \"{downloadPath}\\{ fileName}\" -ss {start} -frames:v 15 {fileName}_%d.jpg";
             //psi.RedirectStandardOutput = true;
             //psi.RedirectStandardError = true;
-            psi.UseShellExecute = true;
+            psi.UseShellExecute = false;
 
             log.Info($"Args: {psi.Arguments}");
             var process = Process.Start(psi);
@@ -105,9 +120,12 @@ namespace BrandIdentifier
 
                 }
             }
-            
+
             //Cleaup Files
-            CleanupFiles();
+            //if (!isStart)
+            //{
+            //    CleanupFiles(fileName);
+            //}
 
             if (newTime != null && vidurl !=null)
             {
@@ -144,6 +162,17 @@ namespace BrandIdentifier
 
         }
 
+        private static void DownloadFile(string fileUri, string fileName)
+        {
+            WebClient myWebClient = new WebClient();
+            myWebClient.DownloadFileCompleted += _downloadComplete;
+            myWebClient.DownloadFileAsync(new Uri(fileUri), fileName);
+        }
+        private static void _downloadComplete(object sender, AsyncCompletedEventArgs e)
+        {
+            downloadComplete = true;
+        }
+
         private static string ReadFileAndAnalyze(string fileName)
         {
             // create the http client
@@ -175,10 +204,15 @@ namespace BrandIdentifier
                 .Build();
             predictionKey = config["predictionKey"];
             customVizURL = config["customVizURL"];
+            downloadPath = config["downloadPath"];
         }
 
-        static void CleanupFiles()
+        static void CleanupFiles(string fileName)
         {
+            //Delete the video file
+            File.Delete(fileName);
+
+            //Delete the thumbs
             string[] thumbList = Directory.GetFiles("./", "*.jpg");
             foreach (string file in thumbList)
             {
