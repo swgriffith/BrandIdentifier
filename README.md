@@ -70,13 +70,11 @@ This should deploy the following resources:
 ![Logic App HTTP](images/logic-http.png)
 
 4. Update the URLs as follows:
-HTTP 2
+
 ![http2](images/http2.png)
 
-HTTP
 ![http](images/http.png)
 
-HTTP 3
 ![http3](images/http3.png)
 
 5. Press Save.
