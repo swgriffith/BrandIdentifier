@@ -15,6 +15,7 @@ using Microsoft.Extensions.Configuration;
 using System.Collections.Generic;
 using System.Linq;
 using System.ComponentModel;
+using BrandIdentifier2;
 
 namespace BrandIdentifier
 {
@@ -34,13 +35,14 @@ namespace BrandIdentifier
             log.Info("Call invoked to get video frames.");
             
             GetSettings(context);
-
-            string position = WebUtility.UrlDecode(req.Query["position"]);
-            string fileName = WebUtility.UrlDecode(req.Query["filename"]);
+            
             bool isStart = Convert.ToBoolean(WebUtility.UrlDecode(req.Query["isstart"]));
-            string vidurl = new StreamReader(req.Body).ReadToEnd();
+            string json = new StreamReader(req.Body).ReadToEnd();
 
-            if (!File.Exists(fileName))
+            var o = JsonConvert.DeserializeObject<startAndEndOutput>(json);
+            string filePath = Path.Combine(downloadPath, o.fileName);
+            log.Info(filePath);
+            if (!File.Exists(filePath))
             {
                 return new BadRequestObjectResult("File not found on server. Please call the Download Function.");
                 //log.Info($"Downloading: {vidurl}");
@@ -52,6 +54,20 @@ namespace BrandIdentifier
                 //log.Info("Download complete.");
             }
 
+
+            string newStartTime = ProcessFiles(o.fileName, o.startTime.TimeOfDay.ToString(), true, log);
+            string newEndTime = ProcessFiles(o.fileName, o.endTime.TimeOfDay.ToString(), false, log);
+
+            o.startTime = DateTime.Parse(newStartTime);
+            o.endTime = DateTime.Parse(newEndTime);
+
+            
+                return (ActionResult)new OkObjectResult(o);
+            
+        }
+
+        private static string ProcessFiles(string fileName, string position, bool isStart, TraceWriter log)
+        {
             string brandSpecificTag = "brand_specific_end";
             if (isStart)
             {
@@ -61,10 +77,13 @@ namespace BrandIdentifier
             string start = GetStartTime(position, isStart);
             log.Info(Directory.GetCurrentDirectory());
             var psi = new ProcessStartInfo();
-            psi.FileName = @".\ffmpeg\ffmpeg.exe";
-            psi.Arguments = $"-i \"{downloadPath}\\{ fileName}\" -ss {start} -frames:v 15 {fileName}_%d.jpg";
+            psi.FileName = Path.Combine(downloadPath, "ffmpeg", "ffmpeg.exe");
+            
+            log.Info(psi.FileName);
+            psi.Arguments = $"-i \"{downloadPath}\\{ fileName}\" -ss {start} -frames:v 15 \"{downloadPath}\\{fileName}_%d.jpg\"";
             //psi.RedirectStandardOutput = true;
             //psi.RedirectStandardError = true;
+            
             psi.UseShellExecute = false;
 
             log.Info($"Args: {psi.Arguments}");
@@ -78,7 +97,8 @@ namespace BrandIdentifier
 
             for (int i = 1; i < 15; i++)
             {
-                var result = ReadFileAndAnalyze($"{fileName}_{i}.jpg");
+                string outputFile = Path.Combine(downloadPath, fileName + "_" + i + ".jpg");
+                var result = ReadFileAndAnalyze(outputFile);
 
                 dynamic customVisionResults = JsonConvert.DeserializeObject(result);
                 if (customVisionResults.predictions != null)
@@ -127,15 +147,7 @@ namespace BrandIdentifier
             {
                 CleanupFiles(fileName);
             }
-
-            if (newTime != null && vidurl !=null)
-            {
-                return (ActionResult)new OkObjectResult(newTime);
-            }
-            else
-            {
-                return new BadRequestObjectResult("Please confirm the input position and vidurl URL params are set.");
-            }
+            return newTime;
         }
 
         private static string GetNewTime(string startPos, int frame)
@@ -210,11 +222,12 @@ namespace BrandIdentifier
 
         static void CleanupFiles(string fileName)
         {
+            string vidFile = Path.Combine(downloadPath, fileName);
             //Delete the video file
-            File.Delete(fileName);
+            File.Delete(vidFile);
 
             //Delete the thumbs
-            string[] thumbList = Directory.GetFiles("./", "*.jpg");
+            string[] thumbList = Directory.GetFiles(downloadPath, "*.jpg");
             foreach (string file in thumbList)
             {
                 File.Delete(file);
