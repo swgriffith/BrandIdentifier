@@ -42,13 +42,14 @@ namespace BrandIdentifier
 
             if (!File.Exists(fileName))
             {
-                log.Info($"Downloading: {vidurl}");
-                DownloadFile(vidurl, $"{downloadPath}\\{fileName}");
-                do
-                {
-                } while (!downloadComplete);
+                return new BadRequestObjectResult("File not found on server. Please call the Download Function.");
+                //log.Info($"Downloading: {vidurl}");
+                //DownloadFile(vidurl, $"{downloadPath}\\{fileName}");
+                //do
+                //{
+                //} while (!downloadComplete);
 
-                log.Info("Download complete.");
+                //log.Info("Download complete.");
             }
 
             string brandSpecificTag = "brand_specific_end";
@@ -162,16 +163,16 @@ namespace BrandIdentifier
 
         }
 
-        private static void DownloadFile(string fileUri, string fileName)
-        {
-            WebClient myWebClient = new WebClient();
-            myWebClient.DownloadFileCompleted += _downloadComplete;
-            myWebClient.DownloadFileAsync(new Uri(fileUri), fileName);
-        }
-        private static void _downloadComplete(object sender, AsyncCompletedEventArgs e)
-        {
-            downloadComplete = true;
-        }
+        //private static void DownloadFile(string fileUri, string fileName)
+        //{
+        //    WebClient myWebClient = new WebClient();
+        //    myWebClient.DownloadFileCompleted += _downloadComplete;
+        //    myWebClient.DownloadFileAsync(new Uri(fileUri), fileName);
+        //}
+        //private static void _downloadComplete(object sender, AsyncCompletedEventArgs e)
+        //{
+        //    downloadComplete = true;
+        //}
 
         private static string ReadFileAndAnalyze(string fileName)
         {

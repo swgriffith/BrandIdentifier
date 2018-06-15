@@ -79,8 +79,8 @@ namespace BrandIdentifier2
                 var videoDownloadURLResult = client.GetAsync($"{apiUrl}/{location}/Accounts/{accountId}/Videos/{videoId}/SourceFile/DownloadUrl?accessToken={videoAccessToken}").Result;
                 string videoDowloadURL = JsonConvert.DeserializeObject(videoDownloadURLResult.Content.ReadAsStringAsync().Result).ToString();
 
-                log.Info("Download Starting");
-                DownloadFile(videoDowloadURL, videoDetails.name.ToString());
+                //log.Info("Download Starting");
+                //DownloadFile(videoDowloadURL, videoDetails.name.ToString());
                 
                 //Iterate through the results to extract the key frames and thumbnail images to build a list of the thumbs to be analyzed
                 List<thumb> thumbs = new List<thumb>();
@@ -175,16 +175,16 @@ namespace BrandIdentifier2
             frameRefineFuncURL = config["frameRefineFuncURL"];
         }
 
-        private static void DownloadFile(string fileUri, string fileName)
-        {
-            WebClient myWebClient = new WebClient();
-            myWebClient.DownloadFileCompleted += _downloadComplete;
-            myWebClient.DownloadFileAsync(new Uri(fileUri), fileName);
-        }
-        private static void _downloadComplete(object sender, AsyncCompletedEventArgs e)
-        {
-            downloadComplete = true;
-        }
+        //private static void DownloadFile(string fileUri, string fileName)
+        //{
+        //    WebClient myWebClient = new WebClient();
+        //    myWebClient.DownloadFileCompleted += _downloadComplete;
+        //    myWebClient.DownloadFileAsync(new Uri(fileUri), fileName);
+        //}
+        //private static void _downloadComplete(object sender, AsyncCompletedEventArgs e)
+        //{
+        //    downloadComplete = true;
+        //}
 
         static Stream GetThumb(string thumbId, string videoId, string accessToken)
         {
@@ -274,15 +274,18 @@ namespace BrandIdentifier2
         {
             startAndEndOutput output = new startAndEndOutput();
 
-            //Wait for download to complete
-            log.Info("Waiting for Download to Complete");
-            do
-            {
-                //wait
-            } while (!downloadComplete);
-            log.Info("Download Complete");
-            output.startTime = frameRefine((input.OrderBy(a => a.start).First().start), fileName, true, log);
-            output.endTime = frameRefine((input.OrderBy(a => a.end).Last().end), fileName, false, log);
+            ////Wait for download to complete
+            //log.Info("Waiting for Download to Complete");
+            //do
+            //{
+            //    //wait
+            //} while (!downloadComplete);
+            //log.Info("Download Complete");
+            //output.startTime = frameRefine((input.OrderBy(a => a.start).First().start), fileName, true, log);
+            //output.endTime = frameRefine((input.OrderBy(a => a.end).Last().end), fileName, false, log);
+            output.startTime = input.OrderBy(a => a.start).First().start;
+            output.endTime = input.OrderBy(a => a.end).Last().end;
+
             output.fileName = fileName;
 
             return output;
