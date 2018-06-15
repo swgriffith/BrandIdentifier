@@ -346,4 +346,12 @@ namespace BrandIdentifier2
         public DateTime endTime { get; set; }
 
     }
+
+    public class AddtlStartAndEndOutput
+    {
+        public string fileName { get; set; }
+        public string startTime { get; set; }
+        public string endTime { get; set; }
+
+    }
 }

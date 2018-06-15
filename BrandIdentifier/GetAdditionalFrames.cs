@@ -33,13 +33,14 @@ namespace BrandIdentifier
             ExecutionContext context)
         { 
             log.Info("Call invoked to get video frames.");
-            
+          
             GetSettings(context);
             
             bool isStart = Convert.ToBoolean(WebUtility.UrlDecode(req.Query["isstart"]));
             string json = new StreamReader(req.Body).ReadToEnd();
 
-            var o = JsonConvert.DeserializeObject<startAndEndOutput>(json);
+            var o = JsonConvert.DeserializeObject<AddtlStartAndEndOutput>(json);
+            
             string filePath = Path.Combine(downloadPath, o.fileName);
             log.Info(filePath);
             if (!File.Exists(filePath))
@@ -55,14 +56,13 @@ namespace BrandIdentifier
             }
 
 
-            string newStartTime = ProcessFiles(o.fileName, o.startTime.TimeOfDay.ToString(), true, log);
-            string newEndTime = ProcessFiles(o.fileName, o.endTime.TimeOfDay.ToString(), false, log);
+            string newStartTime = ProcessFiles(o.fileName, o.startTime, true, log);
+            string newEndTime = ProcessFiles(o.fileName, o.endTime, false, log);
 
-            o.startTime = DateTime.Parse(newStartTime);
-            o.endTime = DateTime.Parse(newEndTime);
+            o.startTime = DateTime.Parse(newStartTime).TimeOfDay.ToString();
+            o.endTime = DateTime.Parse(newEndTime).TimeOfDay.ToString();
 
-            
-                return (ActionResult)new OkObjectResult(o);
+            return (ActionResult)new OkObjectResult(o);
             
         }
 
@@ -153,7 +153,7 @@ namespace BrandIdentifier
         private static string GetNewTime(string startPos, int frame)
         {
 
-            TimeSpan s = TimeSpan.Parse(startPos);
+            TimeSpan s = DateTime.Parse(startPos).TimeOfDay;
             double startFrame = (s.TotalSeconds * 25);
             double seconds = (startFrame + frame) / 25;
             TimeSpan final = TimeSpan.FromSeconds(seconds);
@@ -162,7 +162,7 @@ namespace BrandIdentifier
 
         private static string GetStartTime(string startPos ,bool isStart)
         {
-            TimeSpan s = TimeSpan.Parse(startPos);
+            TimeSpan s = DateTime.Parse(startPos).TimeOfDay;
 
             double startFrame = (s.TotalSeconds * 25);
             if (isStart)
