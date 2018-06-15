@@ -16,7 +16,6 @@
             "type": "string"
         },
         "storageAccountName": {
-            "defaultValue": "jdhident",
             "type": "string"
         },
         "functionAppName":{
@@ -57,12 +56,14 @@
          },
          "video_indexer_url":{
              "type": "string",
+             "defaultValue": "https://api.videoindexer.ai",
              "metadata": {
                 "description": "Video Indexer URL"
               } 
          },
          "video_indexer_region":{
              "type": "string",
+             "defaultValue": "trial",
              "metadata": {
                 "description": "Video Indexer Region"
               } 
