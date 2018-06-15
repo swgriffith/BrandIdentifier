@@ -122,10 +122,10 @@ namespace BrandIdentifier
             }
 
             //Cleaup Files
-            //if (!isStart)
-            //{
-            //    CleanupFiles(fileName);
-            //}
+            if (!isStart)
+            {
+                CleanupFiles(fileName);
+            }
 
             if (newTime != null && vidurl !=null)
             {
