@@ -44,7 +44,7 @@ This application identifies custom brands in video
     </a>
 
 This should deploy the following resources:
-![Azure Resources](images/resources.png)
+![Azure Resources](images/resource.png)
 
 2. The key values you grabbed from the earlier stages are needed here (leave the rest as is):
 * Function App Name - has to be globally unique
