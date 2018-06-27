@@ -138,13 +138,13 @@
                         },
                         "Create_blob": {
                             "runAfter": {
-                                "HTTP_3": [
+                                "HTTP_GETADDTLFRAMES": [
                                     "Succeeded"
                                 ]
                             },
                             "type": "ApiConnection",
                             "inputs": {
-                                "body": "@body('HTTP_3')",
+                                "body": "@body('HTTP_GETADDTLFRAMES')",
                                 "host": {
                                     "connection": {
                                         "name": "@parameters('$connections')['azureblob']['connectionId']"
@@ -164,9 +164,9 @@
                                 }
                             }
                         },
-                        "HTTP": {
+                        "HTTP_GETBRANDPOSITION": {
                             "runAfter": {
-                                "HTTP_2": [
+                                "HTTP_DOWNLOAD_VIDEO": [
                                     "Succeeded"
                                 ]
                             },
@@ -176,7 +176,21 @@
                                 "uri": "[concat('https://', 'replaceme')]"
                             }
                         },
-                        "HTTP_2": {
+                        "Delay": {
+                            "inputs": {
+                                "interval": {
+                                    "count": 30,
+                                    "unit": "Second"
+                                }
+                            },
+                            "runAfter": {
+                                "HTTP_UPLOAD_VIDEO": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Wait"
+                        },
+                        "HTTP_DOWNLOAD_VIDEO": {
                             "runAfter": {
                                 "Until": [
                                     "Succeeded"
@@ -189,82 +203,68 @@
                                 "uri": "[concat('https://', 'replaceme')]"
                             }
                         },
-                        "HTTP_3": {
+                        "HTTP_GETADDTLFRAMES": {
                             "runAfter": {
-                                "HTTP": [
+                                "HTTP_GETBRANDPOSITION": [
                                     "Succeeded"
                                 ]
                             },
                             "type": "Http",
                             "inputs": {
-                                "body": "@body('HTTP')",
+                                "body": "@body('HTTP_GETBRANDPOSITION')",
                                 "method": "POST",
                                 "uri": "[concat('https://', 'replaceme')]"
                             }
                         },
                         "Until": {
                             "actions": {
-                                "Delay": {
-                                    "runAfter": {
-                                        "Get_processing_state": [
-                                            "Succeeded"
-                                        ]
+                                "HTTP_GET_VIDEO_STATE": {
+                                    "inputs": {
+                                        "method": "GET",
+                                        "uri": "https://api.videoindexer.ai/trial/Accounts/7e41ad4d-831e-4e9f-aeda-7d05514dba74/Videos/@{body('HTTP_UPLOAD_VIDEO')['id']}/Index?accessToken=@{body('HTTP_GET_VI_AUTH')}"
                                     },
-                                    "type": "Wait",
-                                    "inputs": {
-                                        "interval": {
-                                            "count": 30,
-                                            "unit": "Second"
-                                        }
-                                    }
-                                },
-                                "Get_processing_state": {
                                     "runAfter": {},
-                                    "type": "ApiConnection",
-                                    "inputs": {
-                                        "host": {
-                                            "connection": {
-                                                "name": "@parameters('$connections')['videoindexer']['connectionId']"
-                                            }
-                                        },
-                                        "method": "get",
-                                        "path": "/Api/Partner/Breakdowns/@{encodeURIComponent(body('Upload_video_and_index_(using_a_URL)'))}/State"
-                                    }
+                                    "type": "Http"
                                 }
                             },
-                            "runAfter": {
-                                "Upload_video_and_index_(using_a_URL)": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "expression": "@equals(body('Get_processing_state')?['state'], 'Processed')",
+                            "expression": "@equals(body('HTTP_GET_VIDEO_STATE')['state'], 'Processed')",
                             "limit": {
                                 "count": 60,
                                 "timeout": "PT1H"
                             },
+                            "runAfter": {
+                                "HTTP_UPLOAD_VIDEO": [
+                                    "Succeeded"
+                                ]
+                            },
                             "type": "Until"
                         },
-                        "Upload_video_and_index_(using_a_URL)": {
+                        "HTTP_GET_VI_AUTH": {
+                            "inputs": {
+                                "headers": {
+                                    "Ocp-Apim-Subscription-Key": "1632b6818e5b4579900738a938256dae"
+                                },
+                                "method": "GET",
+                                "uri": "https://api.videoindexer.ai/auth/trial/Accounts/7e41ad4d-831e-4e9f-aeda-7d05514dba74/AccessToken?allowEdit=true"
+                            },
                             "runAfter": {
                                 "Create_SAS_URI_by_path": [
                                     "Succeeded"
                                 ]
                             },
-                            "type": "ApiConnection",
+                            "type": "Http"
+                        },
+                        "HTTP_UPLOAD_VIDEO": {
                             "inputs": {
-                                "host": {
-                                    "connection": {
-                                        "name": "@parameters('$connections')['videoindexer']['connectionId']"
-                                    }
-                                },
-                                "method": "post",
-                                "path": "/Api/Partner/Breakdowns",
-                                "queries": {
-                                    "name": "@triggerBody()?['DisplayName']",
-                                    "privacy": "Private",
-                                    "videoUrl": "@body('Create_SAS_URI_by_path')?['WebUrl']"
-                                }
-                            }
+                                "method": "POST",
+                                "uri": "https://api.videoindexer.ai/trial/Accounts/7e41ad4d-831e-4e9f-aeda-7d05514dba74/Videos?accessToken=@{body('HTTP_GET_VI_AUTH')}&name=@{triggerBody()?['Name']}&videoUrl=@{encodeUriComponent(body('Create_SAS_URI_by_path')?['WebUrl'])}"
+                            },
+                            "runAfter": {
+                                "HTTP_GET_VI_AUTH": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Http"
                         }
                     },
                     "outputs": {}
