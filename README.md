@@ -19,12 +19,6 @@ This application identifies custom brands in video
 5. Make a note of the Primary Key.
 ![VI key](images/vi-api-key.png)
 
-6. Go to [https://videobreakdown.portal.azure-api.net/](https://videobreakdown.portal.azure-api.net/).
-
-7. Sign in and go to Products->Free Preview and subscribe.
-
-8. Grab the Primary key.
-
 ### Custom Vision AI
 
 1. Setup Custom Vision AI account - go to [customvision.ai](https://customvision.ai) and sign up (or log in).
@@ -53,7 +47,7 @@ This should deploy the following resources:
 * Custom Vision Key - this is the access key grabbed earlier
 * Video Indexer Id - this is the id of your VI account
 * Video Indexer Key - This is the key you grabbed from api-portal.videoindexer.ai
-* Video Indexer Key Logic - This is the key you grabbed from videobreakdown.portal.azure-api.net
+* Video Indexer Key Logic - This is the key you grabbed from api-portal.videoindexer.ai
 
 3. Download the latest FunctionApp zip file from the releases folder in this repo.
 6. Navigate to the FunctionApp code deploy page: https://<funtion_name>.scm.azurewebsites.net/ZipDeploy
@@ -69,13 +63,13 @@ This should deploy the following resources:
 3. Scroll down to the 3 http boxes at the end
 ![Logic App HTTP](images/logic-http.png)
 
-4. Update the URLs as follows:
+4. Update the URLs as follows - note that you will need to switch to code view for http_getbrand:
 
-![http2](images/http2.png)
+![http2](images/http_download.png)
 
-![http](images/http.png)
+![http](images/http_getbrand.png)
 
-![http3](images/http3.png)
+![http3](images/http_getaddtlframes.png)
 
 5. Press Save.
 
