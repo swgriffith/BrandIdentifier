@@ -71,7 +71,11 @@
     },
     "variables": {
         "hostingPlanName" : "[uniqueString(subscription().subscriptionId)]", 
-        "storageAccountid": "[concat(resourceGroup().id,'/providers/','Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]"
+        "storageAccountid": "[concat(resourceGroup().id,'/providers/','Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]",
+        "snippet":"/Videos/@{body('HTTP_UPLOAD_VIDEO')['id']}/Index?accessToken=@{body('HTTP_GET_VI_AUTH')}",
+        "snippet1":"/Videos?accessToken=@{body('HTTP_GET_VI_AUTH')}&name=@{triggerBody()?['Name']}&videoUrl=@{encodeUriComponent(body('Create_SAS_URI_by_path')?['WebUrl'])}",
+        "viurl":"[concat('https://api.videoindexer.ai/', parameters('video_indexer_region'), '/Accounts/', parameters('video_indexer_id'))]",
+        "viauthurl":"[concat('https://api.videoindexer.ai/auth/', parameters('video_indexer_region'), '/Accounts/', parameters('video_indexer_id'))]"
     },
     "resources": [
         {
@@ -221,7 +225,7 @@
                                 "HTTP_GET_VIDEO_STATE": {
                                     "inputs": {
                                         "method": "GET",
-                                        "uri": "https://api.videoindexer.ai/trial/Accounts/7e41ad4d-831e-4e9f-aeda-7d05514dba74/Videos/@{body('HTTP_UPLOAD_VIDEO')['id']}/Index?accessToken=@{body('HTTP_GET_VI_AUTH')}"
+                                        "uri": "[concat(variables('viurl'), variables('snippet'))]"
                                     },
                                     "runAfter": {},
                                     "type": "Http"
@@ -233,7 +237,7 @@
                                 "timeout": "PT1H"
                             },
                             "runAfter": {
-                                "HTTP_UPLOAD_VIDEO": [
+                                "Delay": [
                                     "Succeeded"
                                 ]
                             },
@@ -242,10 +246,10 @@
                         "HTTP_GET_VI_AUTH": {
                             "inputs": {
                                 "headers": {
-                                    "Ocp-Apim-Subscription-Key": "1632b6818e5b4579900738a938256dae"
+                                    "Ocp-Apim-Subscription-Key": "[parameters('video_indexer_key')]"
                                 },
                                 "method": "GET",
-                                "uri": "https://api.videoindexer.ai/auth/trial/Accounts/7e41ad4d-831e-4e9f-aeda-7d05514dba74/AccessToken?allowEdit=true"
+                                "uri": "[concat(variables('viauthurl'), '/AccessToken?allowEdit=true')]"
                             },
                             "runAfter": {
                                 "Create_SAS_URI_by_path": [
@@ -257,7 +261,7 @@
                         "HTTP_UPLOAD_VIDEO": {
                             "inputs": {
                                 "method": "POST",
-                                "uri": "https://api.videoindexer.ai/trial/Accounts/7e41ad4d-831e-4e9f-aeda-7d05514dba74/Videos?accessToken=@{body('HTTP_GET_VI_AUTH')}&name=@{triggerBody()?['Name']}&videoUrl=@{encodeUriComponent(body('Create_SAS_URI_by_path')?['WebUrl'])}"
+                                "uri": "[concat(variables('viurl'), variables('snippet1'))]"
                             },
                             "runAfter": {
                                 "HTTP_GET_VI_AUTH": [
