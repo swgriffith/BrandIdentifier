@@ -16,6 +16,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.ComponentModel;
 using BrandIdentifier2;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Blob;
+using System.Threading.Tasks;
 
 namespace BrandIdentifier
 {
@@ -25,19 +28,25 @@ namespace BrandIdentifier
         static string predictionKey;
         static string customVizURL;
         static string downloadPath;
+        static string storageConnection;
         static bool downloadComplete = false;
 
         [FunctionName("GetAdditionalFrames")]
-        public static IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequest req,
+        public static async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequest req,
             TraceWriter log,
             ExecutionContext context)
         { 
             log.Info("Call invoked to get video frames.");
           
             GetSettings(context);
+
+            string filename = req.Query["filename"];
+
+            string json = await GetReadData("tempresults", filename);
+
             
-            bool isStart = Convert.ToBoolean(WebUtility.UrlDecode(req.Query["isstart"]));
-            string json = new StreamReader(req.Body).ReadToEnd();
+            
+           
 
             var o = JsonConvert.DeserializeObject<AddtlStartAndEndOutput>(json);
             
@@ -61,9 +70,49 @@ namespace BrandIdentifier
 
             o.startTime = DateTime.Parse(newStartTime).TimeOfDay.ToString();
             o.endTime = DateTime.Parse(newEndTime).TimeOfDay.ToString();
-
+            WriteReadData("results", filename + "_timecodes.json", JsonConvert.SerializeObject(o));
             return (ActionResult)new OkObjectResult(o);
             
+        }
+
+        private static async Task<string> WriteReadData(string containerName, string filename, string text)
+        {
+            // Retrieve storage account from connection string.
+            CloudStorageAccount storageAccount = CloudStorageAccount.Parse(storageConnection);
+
+            // Create the blob client.
+            CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
+
+            // Retrieve reference to a previously created container.
+            CloudBlobContainer container = blobClient.GetContainerReference(containerName);
+
+            // Retrieve reference to a blob named "filename"
+            CloudBlockBlob blockBlob2 = container.GetBlockBlobReference(filename);
+
+            await blockBlob2.UploadTextAsync(text);
+
+            return "done";
+
+        }
+
+        private static async Task<string> GetReadData(string containerName, string filename)
+        {
+            // Retrieve storage account from connection string.
+            CloudStorageAccount storageAccount = CloudStorageAccount.Parse(storageConnection);
+
+            // Create the blob client.
+            CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
+
+            // Retrieve reference to a previously created container.
+            CloudBlobContainer container = blobClient.GetContainerReference(containerName);
+
+            // Retrieve reference to a blob named "filename"
+            CloudBlockBlob blockBlob2 = container.GetBlockBlobReference(filename);
+
+            string text = await blockBlob2.DownloadTextAsync();
+                
+
+            return text;
         }
 
         private static string ProcessFiles(string fileName, string position, bool isStart, TraceWriter log)
@@ -218,6 +267,7 @@ namespace BrandIdentifier
             predictionKey = config["predictionKey"];
             customVizURL = config["customVizURL"];
             downloadPath = config["downloadPath"];
+            storageConnection = config["storageConnectionString"];
         }
 
         static void CleanupFiles(string fileName)
