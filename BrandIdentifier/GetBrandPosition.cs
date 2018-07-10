@@ -5,6 +5,8 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Extensions.Configuration;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Blob;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -16,6 +18,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace BrandIdentifier2
 {
@@ -32,6 +35,7 @@ namespace BrandIdentifier2
         //Frame refine values
         static string vidSASURL;
         static string frameRefineFuncURL;
+        static string storageConnectionString;
 
         static bool downloadComplete = false;
 
@@ -124,20 +128,8 @@ namespace BrandIdentifier2
                     + string.Format("EndFrame: {0}", startAndEndFrames.endTime);
                 log.Info(responseMsg);
 
-                ////To set a filename dynamically we need to use an imperitive binding
-                ////the following creates the binding attributes and binding
-                //var attributes = new Attribute[]
-                //{
-                //    new BlobAttribute(blobPath: $"results/{startAndEndFrames.fileName}.json"),
-                //    new StorageAccountAttribute("storageConnectionString")
-                //};
-
-                //using (var writer = binder.BindAsync<TextWriter>(attributes).Result)
-                //{
-                //    //Write the file to the blob binding
-                //    writer.Write(JsonConvert.SerializeObject(startAndEndFrames));
-                //}
-
+                WriteReadData("tempresults", startAndEndFrames.fileName+"_brandpos.json", JsonConvert.SerializeObject(startAndEndFrames));
+                
 
                 //Write output to HTTP as well
                 return videoDetails != null
@@ -153,6 +145,25 @@ namespace BrandIdentifier2
 
         }
 
+        private static async Task<string> WriteReadData(string containerName, string filename, string text)
+        {
+            // Retrieve storage account from connection string.
+            CloudStorageAccount storageAccount = CloudStorageAccount.Parse(storageConnectionString);
+
+            // Create the blob client.
+            CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
+
+            // Retrieve reference to a previously created container.
+            CloudBlobContainer container = blobClient.GetContainerReference(containerName);
+
+            // Retrieve reference to a blob named "filename"
+            CloudBlockBlob blockBlob2 = container.GetBlockBlobReference(filename);
+
+            await blockBlob2.UploadTextAsync(text);
+
+            return "done";
+
+        }
 
 
 
@@ -173,6 +184,7 @@ namespace BrandIdentifier2
             predictionKey = config["predictionKey"];
             customVizURL = config["customVizURL"];
             frameRefineFuncURL = config["frameRefineFuncURL"];
+            storageConnectionString = config["storageConnectionString"];
         }
 
         //private static void DownloadFile(string fileUri, string fileName)
