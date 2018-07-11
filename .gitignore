@@ -1,2 +1,8 @@
 BrandIdentifier/Properties/PublishProfiles/FolderProfile.pubxml
 .vs/config/applicationhost.config
+.vs/BrandIdentifier/v15/Server/sqlite3/storage.ide-shm
+.vs/BrandIdentifier/DesignTimeBuild/.dtbcache
+.vs/BrandIdentifier/v15/.suo
+.vs/BrandIdentifier/v15/Server/sqlite3/db.lock
+.vs/BrandIdentifier/v15/Server/sqlite3/storage.ide
+.vs/BrandIdentifier/v15/Server/sqlite3/storage.ide-wal

@@ -47,7 +47,8 @@ namespace BrandIdentifier
 
             using (var client = new HttpClient())
             {
-                
+                client.Timeout = TimeSpan.FromMinutes(10);
+
                 Uri anotherFunctionUri = new Uri(requestData.reqUri.Replace(requestData.PathAndQuery, "/api/DownloadVideo/?code=" + downloadvideo_secret));
 
                 var responseFromAnotherFunction = await client.PostAsJsonAsync(anotherFunctionUri, requestData);
@@ -63,7 +64,7 @@ namespace BrandIdentifier
 
             using (var client = new HttpClient())
             {
-                
+                client.Timeout = TimeSpan.FromMinutes(10);
                 Uri anotherFunctionUri = new Uri(requestData.reqUri.Replace(requestData.PathAndQuery, "/api/GetBrandPosition/"+requestData.videoid+"/?code=" + getbrandposition_secret));
 
                 var responseFromAnotherFunction = await client.PostAsJsonAsync(anotherFunctionUri, requestData);
@@ -80,7 +81,7 @@ namespace BrandIdentifier
 
             using (var client = new HttpClient())
             {
-                
+                client.Timeout = TimeSpan.FromMinutes(10);
                 Uri anotherFunctionUri = new Uri(requestData.reqUri.Replace(requestData.PathAndQuery, "/api/GetAdditionalFrames/?code=" + getaddtlframes_secret));
 
                 var responseFromAnotherFunction = await client.PostAsJsonAsync(anotherFunctionUri, requestData);
