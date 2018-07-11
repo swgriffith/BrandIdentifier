@@ -24,7 +24,7 @@ namespace BrandIdentifier
         {
             
             // Function input comes from the request content.
-            ProcessRequest requestData = await req.Content.ReadAsAsync<ProcessRequest>();
+            VidUploadProcessRequest requestData = await req.Content.ReadAsAsync<VidUploadProcessRequest>();
 
             //Get the config settings and add them to the requestData object
             requestData.config = GetSettings(context);            
@@ -50,13 +50,13 @@ namespace BrandIdentifier
             var outputs = new List<string>();
 
             // In this case my orchestrator is only calling a single function - UploadVideo_DoWork
-            outputs.Add(await context.CallActivityAsync<string>("UploadVideo_DoWork", context.GetInput<ProcessRequest>()));
+            outputs.Add(await context.CallActivityAsync<string>("UploadVideo_DoWork", context.GetInput<VidUploadProcessRequest>()));
 
             return outputs;
         }
 
         [FunctionName("UploadVideo_DoWork")]
-        public static string DoWork([ActivityTrigger] ProcessRequest requestData, TraceWriter log)
+        public static string DoWork([ActivityTrigger] VidUploadProcessRequest requestData, TraceWriter log)
         {
             log.Info($"Initiating Upload of {requestData.name}.");
 
@@ -111,7 +111,7 @@ namespace BrandIdentifier
             return settings;
         }
 
-        public class ProcessRequest
+        public class VidUploadProcessRequest
         {
             public string accessToken { get; set; }
             public string name { get; set; }
