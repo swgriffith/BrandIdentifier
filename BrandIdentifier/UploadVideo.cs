@@ -59,20 +59,34 @@ namespace BrandIdentifier
         public static string DoWork([ActivityTrigger] ProcessRequest requestData, TraceWriter log)
         {
             log.Info($"Initiating Upload of {requestData.name}.");
-            
-            // create the http client
-            var handler = new HttpClientHandler();
-            handler.AllowAutoRedirect = false;
-            var client = new HttpClient(handler);
 
-            // Submit Upload
-            string url = $"{requestData.config.apiUrl}/{requestData.config.location}/Accounts/{requestData.config.accountId}/Videos?accessToken={requestData.accessToken}&name={requestData.name}&videoUrl={WebUtility.UrlEncode(requestData.fileURL)}";
-            var videoUploadRequestResult = client.PostAsync(url, null).Result;
+            try
+            {
+                // create the http client
+                var handler = new HttpClientHandler();
+                handler.AllowAutoRedirect = false;
+                var client = new HttpClient(handler);
 
-            var responseData = videoUploadRequestResult.Content.ReadAsStringAsync().Result;
-            dynamic videoDetails = JsonConvert.DeserializeObject(responseData);
-            
-            return videoDetails.id;
+                // Submit Upload
+                string url = $"{requestData.config.apiUrl}/{requestData.config.location}/Accounts/{requestData.config.accountId}/Videos?accessToken={requestData.accessToken}&name={requestData.name}&videoUrl={WebUtility.UrlEncode(requestData.fileURL)}";
+                var videoUploadRequestResult = client.PostAsync(url, null).Result;
+
+                var responseData = videoUploadRequestResult.Content.ReadAsStringAsync().Result;
+                dynamic videoDetails = JsonConvert.DeserializeObject(responseData);
+
+                if (videoUploadRequestResult.StatusCode == HttpStatusCode.OK)
+                {
+                    return videoDetails.id;
+                }
+                else
+                {
+                    return responseData.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                return ex.InnerException.ToString();
+            }
         }
 
 
