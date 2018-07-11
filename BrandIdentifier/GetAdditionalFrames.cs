@@ -32,7 +32,7 @@ namespace BrandIdentifier
         static bool downloadComplete = false;
 
         [FunctionName("GetAdditionalFrames")]
-        public static async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequest req,
+        public static async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequestMessage req,
             TraceWriter log,
             ExecutionContext context)
         { 
@@ -40,17 +40,12 @@ namespace BrandIdentifier
           
             GetSettings(context);
 
-            string filename = req.Query["filename"];
+            
 
-            string json = await GetReadData("tempresults", filename);
+             var o = await req.Content.ReadAsAsync<ExtractProcessData>();
 
             
-            
-           
-
-            var o = JsonConvert.DeserializeObject<AddtlStartAndEndOutput>(json);
-            
-            string filePath = Path.Combine(downloadPath, o.fileName);
+            string filePath = Path.Combine(downloadPath, o.filename);
             log.Info(filePath);
             if (!File.Exists(filePath))
             {
@@ -65,12 +60,12 @@ namespace BrandIdentifier
             }
 
 
-            string newStartTime = ProcessFiles(o.fileName, o.startTime, true, log);
-            string newEndTime = ProcessFiles(o.fileName, o.endTime, false, log);
+            string newStartTime = ProcessFiles(o.filename, o.startTime, true, log);
+            string newEndTime = ProcessFiles(o.filename, o.endTime, false, log);
 
             o.startTime = DateTime.Parse(newStartTime).TimeOfDay.ToString();
             o.endTime = DateTime.Parse(newEndTime).TimeOfDay.ToString();
-            WriteReadData("results", filename + "_timecodes.json", JsonConvert.SerializeObject(o));
+            WriteReadData("results", o.filename + "_timecodes.json", JsonConvert.SerializeObject(o));
             return (ActionResult)new OkObjectResult(o);
             
         }
