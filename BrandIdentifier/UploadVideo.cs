@@ -99,7 +99,6 @@ namespace BrandIdentifier
 
         public class ProcessRequest
         {
-            public string data { get; set; }
             public string accessToken { get; set; }
             public string name { get; set; }
             public string externalid { get; set; }
