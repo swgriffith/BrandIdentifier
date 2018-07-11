@@ -71,11 +71,8 @@ namespace BrandIdentifier
 
             var responseData = videoUploadRequestResult.Content.ReadAsStringAsync().Result;
             dynamic videoDetails = JsonConvert.DeserializeObject(responseData);
-
-            output vidData = new output();
-            vidData.videoId = videoDetails.id;
-
-            return vidData.ToString();
+            
+            return videoDetails.id;
         }
 
 
@@ -116,11 +113,6 @@ namespace BrandIdentifier
             public string accountId { get; set; }
             public string location { get; set; }
             public string apiKey { get; set; }
-        }
-
-        public class output
-        {
-            public string videoId { get; set; }
         }
 
 
