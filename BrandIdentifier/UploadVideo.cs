@@ -66,7 +66,7 @@ namespace BrandIdentifier
                 var handler = new HttpClientHandler();
                 handler.AllowAutoRedirect = false;
                 var client = new HttpClient(handler);
-
+                client.Timeout = TimeSpan.FromMinutes(10);
                 // Submit Upload
                 string url = $"{requestData.config.apiUrl}/{requestData.config.location}/Accounts/{requestData.config.accountId}/Videos?accessToken={requestData.accessToken}&name={requestData.name}&videoUrl={WebUtility.UrlEncode(requestData.fileURL)}";
                 var videoUploadRequestResult = client.PostAsync(url, null).Result;

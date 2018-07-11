@@ -10,6 +10,8 @@ using System.Net;
 using System;
 using Microsoft.Extensions.Configuration;
 using System.ComponentModel;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace BrandIdentifier
 {
@@ -19,21 +21,16 @@ namespace BrandIdentifier
         static bool downloadComplete = false;
 
         [FunctionName("DownloadVideo")]
-        public static IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequest req, TraceWriter log, ExecutionContext context)
+        public static async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequestMessage req, TraceWriter log, ExecutionContext context)
         {
             log.Info("Video File Download started.");
             GetSettings(context);
-            string fileName = WebUtility.UrlDecode(req.Query["filename"]);
-            string vidurl = new StreamReader(req.Body).ReadToEnd();
 
-            DownloadFile(vidurl, fileName, log);
+            var o = await req.Content.ReadAsAsync<ExtractProcessData>();
 
-            //do
-            //{
+            DownloadFile(o.url, o.filename, log);
 
-            //} while (!downloadComplete);
-
-            if (fileName != null || vidurl != null)
+            if (downloadComplete)
             {
                 return (ActionResult)new OkObjectResult($"Download Complete");
             } 
@@ -62,7 +59,7 @@ namespace BrandIdentifier
             WebClient myWebClient = new WebClient();
             log.Info("Writing to: " + fileName);
             myWebClient.DownloadFile(new Uri(fileUri), Path.Combine(downloadPath, fileName));
-            
+            downloadComplete = true;
             //myWebClient.DownloadFileCompleted += _downloadComplete;
         }
 

@@ -1,4 +1,5 @@
 
+using BrandIdentifier;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -40,7 +41,7 @@ namespace BrandIdentifier2
         static bool downloadComplete = false;
 
         [FunctionName("GetBrandPosition")]
-        public static IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "GetBrandPosition/{videoID}")]HttpRequest req,
+        public static async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "GetBrandPosition/{videoID}")]HttpRequestMessage req,
             string videoId,
             Binder binder,
             TraceWriter log, 
@@ -54,8 +55,8 @@ namespace BrandIdentifier2
                 GetSettings(context);
                 log.Info("Retrieved Settings");
 
-                //Pull the video blob SAS for later use
-                vidSASURL = new StreamReader(req.Body).ReadToEnd();
+
+                var o = await req.Content.ReadAsAsync<ExtractProcessData>();
 
                 //set the TLS level used
                 System.Net.ServicePointManager.SecurityProtocol = System.Net.ServicePointManager.SecurityProtocol | System.Net.SecurityProtocolType.Tls12;
@@ -68,20 +69,23 @@ namespace BrandIdentifier2
 
                 // obtain video access token used in subsequent calls
                 log.Info($"{apiUrl}/auth/{location}/Accounts/{accountId}/Videos/{videoId}/AccessToken");
-                var videoAccessTokenRequestResult = client.GetAsync($"{apiUrl}/auth/{location}/Accounts/{accountId}/Videos/{videoId}/AccessToken").Result;
-                var videoAccessToken = videoAccessTokenRequestResult.Content.ReadAsStringAsync().Result.Replace("\"", "");
+                var videoAccessTokenRequestResult = await client.GetAsync($"{apiUrl}/auth/{location}/Accounts/{accountId}/Videos/{videoId}/AccessToken");
+                var videoAccessToken = await videoAccessTokenRequestResult.Content.ReadAsStringAsync();
+                videoAccessToken = videoAccessToken.Replace("\"", "");
 
-               client.DefaultRequestHeaders.Remove("Ocp-Apim-Subscription-Key");
+                client.DefaultRequestHeaders.Remove("Ocp-Apim-Subscription-Key");
 
                 // Get video details
-                var videoRequestResult = client.GetAsync($"{apiUrl}/{location}/Accounts/{accountId}/Videos/{videoId}/Index?accessToken={videoAccessToken}").Result;
-                var videoResult = videoRequestResult.Content.ReadAsStringAsync().Result;
+                var videoRequestResult = await client.GetAsync($"{apiUrl}/{location}/Accounts/{accountId}/Videos/{videoId}/Index?accessToken={videoAccessToken}");
+                var videoResult = await videoRequestResult.Content.ReadAsStringAsync();
+                
 
                 dynamic videoDetails = JsonConvert.DeserializeObject(videoResult);
 
                 // Get video download URL
-                var videoDownloadURLResult = client.GetAsync($"{apiUrl}/{location}/Accounts/{accountId}/Videos/{videoId}/SourceFile/DownloadUrl?accessToken={videoAccessToken}").Result;
-                string videoDowloadURL = JsonConvert.DeserializeObject(videoDownloadURLResult.Content.ReadAsStringAsync().Result).ToString();
+                var videoDownloadURLResult = await client.GetAsync($"{apiUrl}/{location}/Accounts/{accountId}/Videos/{videoId}/SourceFile/DownloadUrl?accessToken={videoAccessToken}");
+                var videoDL = await videoDownloadURLResult.Content.ReadAsStringAsync();
+                string videoDowloadURL = JsonConvert.DeserializeObject(videoDL).ToString();
 
                 //log.Info("Download Starting");
                 //DownloadFile(videoDowloadURL, videoDetails.name.ToString());
@@ -96,7 +100,6 @@ namespace BrandIdentifier2
                         {
                             foreach (var instance in keyFrame.instances)
                             {
-                                    //Console.WriteLine(string.Format("{0} : {1} : {2} : {3} : {4}", shot.id, keyFrame.id, instance.thumbnailId, instance.start, instance.end));
                                     thumbs.Add(new thumb
                                     {
                                         thumbId = instance.thumbnailId,
@@ -128,19 +131,20 @@ namespace BrandIdentifier2
                     + string.Format("EndFrame: {0}", startAndEndFrames.endTime);
                 log.Info(responseMsg);
 
-                WriteReadData("tempresults", startAndEndFrames.fileName+"_brandpos.json", JsonConvert.SerializeObject(startAndEndFrames));
-                
+                //WriteReadData("tempresults", startAndEndFrames.fileName+"_brandpos.json", JsonConvert.SerializeObject(startAndEndFrames));
+                o.startTime = startAndEndFrames.startTime.ToLongTimeString();
+                o.endTime = startAndEndFrames.endTime.ToLongTimeString();
 
                 //Write output to HTTP as well
                 return videoDetails != null
-                ? (ActionResult)new OkObjectResult(JsonConvert.SerializeObject(startAndEndFrames))
+                ? (ActionResult)new OkObjectResult(JsonConvert.SerializeObject(o))
                 : new BadRequestObjectResult("Please pass a video Id on the query string");
 
             }
             catch (Exception ex)
             {
-                log.Info(ex.InnerException.Message);
-                return new BadRequestObjectResult(ex.InnerException.Message);
+                log.Info(ex.Message);
+                return new BadRequestObjectResult(ex.Message);
             }
 
         }
