@@ -134,6 +134,7 @@ namespace BrandIdentifier2
                 //WriteReadData("tempresults", startAndEndFrames.fileName+"_brandpos.json", JsonConvert.SerializeObject(startAndEndFrames));
                 o.startTime = startAndEndFrames.startTime.ToString("HH:mm:ss.ffff");
                 o.endTime = startAndEndFrames.endTime.ToString("HH:mm:ss.ffff");
+               
 
                 //Write output to HTTP as well
                 return videoDetails != null
