@@ -65,6 +65,9 @@ namespace BrandIdentifier
 
             o.startTime = DateTime.Parse(newStartTime).TimeOfDay.ToString();
             o.endTime = DateTime.Parse(newEndTime).TimeOfDay.ToString();
+            o.framesStart = Convert.ToInt32(DateTime.Parse(newStartTime).TimeOfDay.TotalSeconds * 25);
+            o.framesEnd = Convert.ToInt32(DateTime.Parse(newEndTime).TimeOfDay.TotalSeconds * 25);
+
             WriteReadData("results", o.filename + "_timecodes.json", JsonConvert.SerializeObject(o));
             return (ActionResult)new OkObjectResult(o);
             

@@ -18,5 +18,11 @@ namespace BrandIdentifier
         public string startTime { get; set; }
 
         public string endTime { get; set; }
+
+        public int framesStart { get; set; }
+
+        public int framesEnd { get; set; }
     }
+
+
 }

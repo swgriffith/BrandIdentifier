@@ -88,7 +88,7 @@ namespace BrandIdentifier
                 // process the response
                 var result = await responseFromAnotherFunction.Content.ReadAsStringAsync();
                 var initresult = JsonConvert.DeserializeObject<ExtractProcessData>(result);
-                var finalResult = new FinalResult() { filename = initresult.filename, endtime = initresult.endTime, starttime = initresult.startTime };
+                var finalResult = new FinalResult() { filename = initresult.filename, endtime = initresult.endTime, starttime = initresult.startTime, framestart=initresult.framesStart, frameend=initresult.framesEnd };
                 return finalResult;
                
             }
@@ -124,5 +124,9 @@ namespace BrandIdentifier
         public string starttime { get; set; }
 
         public string endtime { get; set; }
+
+        public int framestart { get; set; }
+
+        public int frameend { get; set; }
     }
 }
