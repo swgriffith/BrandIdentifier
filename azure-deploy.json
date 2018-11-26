@@ -284,7 +284,7 @@
                             "videoindexer": {
                                 "connectionId": "[resourceId('Microsoft.Web/connections', parameters('connections_videoindexer_name'))]",
                                 "connectionName": "videoindexer",
-                                "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', 'videoindexer')]"
+                                "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', 'videoindexer-v2')]"
                             }
                         }
                     }
