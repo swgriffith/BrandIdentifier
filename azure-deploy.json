@@ -48,12 +48,6 @@
                "description": "Video Indexer Key"
              } 
         },
-         "video_indexer_key_logic":{
-             "type": "securestring",
-             "metadata": {
-                "description": "Logic App Video Indexer Key"
-              } 
-         },
          "video_indexer_url":{
              "type": "string",
              "defaultValue": "https://api.videoindexer.ai",
@@ -280,19 +274,13 @@
                                 "connectionId": "[resourceId('Microsoft.Web/connections', parameters('connections_azureblob_name'))]",
                                 "connectionName": "azureblob",
                                 "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', 'azureblob')]"
-                            },
-                            "videoindexer": {
-                                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('connections_videoindexer_name'))]",
-                                "connectionName": "videoindexer",
-                                "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', 'videoindexer-v2')]"
                             }
                         }
                     }
                 }
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Web/connections', parameters('connections_azureblob_name'))]",
-                "[resourceId('Microsoft.Web/connections', parameters('connections_videoindexer_name'))]"
+                "[resourceId('Microsoft.Web/connections', parameters('connections_azureblob_name'))]"
             ]
         },
         {
@@ -329,24 +317,6 @@
                 }
             },
             
-            "dependsOn": []
-        },
-        {
-            "type": "Microsoft.Web/connections",
-            "name": "[parameters('connections_videoindexer_name')]",
-            "apiVersion": "2016-06-01",
-            "location": "[resourceGroup().location]",
-            "scale": null,
-            "properties": {
-                "displayName": "[parameters('connections_videoindexer_name')]",
-                "customParameterValues": {},
-                "parameterValues": {
-                    "api_key": "[parameters('video_indexer_key_logic')]"
-                  },
-                "api": {
-                    "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/', parameters('connections_videoindexer_name'))]"
-                }
-            },
             "dependsOn": []
         },
         {
